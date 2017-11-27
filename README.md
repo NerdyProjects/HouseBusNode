@@ -54,3 +54,17 @@ A node that is close to a powerful bus power feed can easily use the bus power t
 It is left to the deployer of the bus system to ensure that the bus voltage drop is taken into account when deploying powerful nodes.
 
 
+# Software description
+
+## Ideas
+
+### Encryption / signature
+Although not necessary in this project, I am interested in using a crypto library.
+http://kmackay.ca/micro-ecc/ seems nice to use on our Cortex M0.
+
+### CAN protocol
+  Libuavcan CAN library (Cortex M0: 30 kBytes flash, 6 kBytes ram) seems nice as it supports broadcast messages as well as unicast transfers.
+  Its DSL allows building arbitrary messages for different data to transmit.
+  All devices need to agree on the subset of packets they want to use (easy, as otherwise they could not use them anyway).
+  There is no additional network management layer necessary.
+  Tooling seems good, development stable.
