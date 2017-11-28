@@ -3,7 +3,7 @@
   (general
     (links 239)
     (no_connects 0)
-    (area 29.02412 27.972999 98.87588 94.125001)
+    (area 31.224999 28.324999 96.375001 93.575001)
     (thickness 1.6)
     (drawings 46)
     (tracks 1064)
@@ -3323,10 +3323,10 @@
       (net 63 DIN_SW_B2_135))
     (pad 3 thru_hole oval (at 0 5.08 90) (size 2.032 1.7272) (drill 1.016) (layers *.Cu *.Mask F.SilkS)
       (net 2 GND))
-    (model Pin_Headers.3dshapes/Pin_Header_Straight_1x03.wrl
-      (at (xyz 0 -0.1 0))
+    (model Pin_Headers.3dshapes/Pin_Header_Straight_1x03_Pitch2.54mm.wrl
+      (at (xyz 0 0 0))
       (scale (xyz 1 1 1))
-      (rotate (xyz 0 0 90))
+      (rotate (xyz 0 0 0))
     )
   )
 
@@ -3537,7 +3537,7 @@
       (net 41 "Net-(J16-Pad3)"))
     (pad 3 thru_hole oval (at 2.54 0) (size 2.49936 1.50114) (drill 1.00076) (layers *.Cu *.Mask F.SilkS)
       (net 76 "Net-(Q7-Pad3)"))
-    (model TO_SOT_Packages_THT.3dshapes/TO-220_Neutral123_Vertical.wrl
+    (model TO_SOT_Packages_THT.3dshapes/TO-220_Vertical.wrl
       (at (xyz 0 0 0))
       (scale (xyz 0.3937 0.3937 0.3937))
       (rotate (xyz 0 0 0))
