@@ -62,9 +62,11 @@ Both ends "stub" 30m each, 2 times 3 floors with 3.5 m height (connection just t
 Each bus node has an on-board step down converter to convert the bus voltage (because of the availabiliy of cheap step downs <24 V) to 3.3 V for the circuit.
 Some applications might use the bus power directly, when exact voltage does not matter and current is limited (so the bus is not powered off).
 The network should be usable with ~50 nodes that can be power-fed at multiple times in the bus.
+
 The bus cable resistance following the above approximation (120m) and taking 0.4mm/0.13mm² cable (AWG26) as a worst case candidate comes down to ~30 ohms.
 Taking a worst case, default active operational current of 50 mA @ 3.3V for 50 nodes (~8 W), as well as a supply of 18 V already results in a current consumption of 450 mA, which would be too big for the given cabling.
 Due to this, power consumption of nodes should be kept in mind when deploying them.
+
 A node that is close to a powerful bus power feed can easily use the bus power to drive lighting or a doorbell with 20 W.
 It is left to the deployer of the bus system to ensure that the bus voltage drop is taken into account when deploying powerful nodes.
 
@@ -155,7 +157,10 @@ http://kmackay.ca/micro-ecc/ seems nice to use on our Cortex M0.
 
 ### CAN protocol
   Libuavcan CAN library (Cortex M0: 30 kBytes flash, 6 kBytes ram) seems nice as it supports broadcast messages as well as unicast transfers.
+
   Its DSL allows building arbitrary messages for different data to transmit.
   All devices need to agree on the subset of packets they want to use (easy, as otherwise they could not use them anyway).
+
   There is no additional network management layer necessary.
+
   Tooling seems good, development stable.
