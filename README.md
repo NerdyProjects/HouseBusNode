@@ -42,8 +42,9 @@ Because of the broad availability and use of these boards, they might be worth a
 
 The CAN-Bus is not meant to operate with long stub lines - but using slew rate control, it is safe to do so.
 Following CAN physical layer requirements (TI SLLA270, 01/2008), the maximum stub length should be less than 1/3rd of the critical length, which equals the down-and-back delay of the transition time, which is the longer of the rise or fall times:
+
 | HVD230 Rs | Tplh | Tphl | 1/3 of critical length | max. length @ 250 kBaud | max. length @ 125 kBaud |
-| --- |      ----  | ---- | ---------------------- | ---------- |
+| --------- | ---- | ---- | ---------------------- | ---------- |
 | 0         | 35 ns| 70 ns | 2.3 m (1.1 m)         | ~280 m |
 | 10k       | 65 ns| 130 ns | 4.3 m (2.1 m)        | ~282 m |
 | 100k      | 500 ns| 870 ns | 29 m (16.6 m) | ~208 m |
