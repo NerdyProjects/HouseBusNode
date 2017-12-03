@@ -1,0 +1,4 @@
+pcb/out
+sw/build
+sw/config.mk
+sw/.dep
