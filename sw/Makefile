@@ -2,6 +2,7 @@
 # Build global options
 # NOTE: Can be overridden externally.
 #
+project_dir := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
@@ -40,7 +41,7 @@ endif
 
 # Enable this if you want to see the full log while compiling.
 ifeq ($(USE_VERBOSE_COMPILE),)
-  USE_VERBOSE_COMPILE = no
+  USE_VERBOSE_COMPILE = yes
 endif
 
 # If enabled, this option makes the build process faster by not compiling
@@ -87,13 +88,14 @@ endif
 # Define project name here
 PROJECT = busnode
 
+
 # Imported source files and paths
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f0xx.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F0xx/platform.mk
-include $(CHIBIOS)/os/hal/boards/ST_NUCLEO64_F072RB/board.mk
+include board/board.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
