@@ -16,7 +16,7 @@ endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -fno-rtti
+  USE_CPPOPT = -pedantic -std=c++11 -fno-rtti -fno-threadsafe-statics
 endif
 
 # Enable this if you want the linker to remove unused code and data
@@ -97,6 +97,7 @@ include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F0xx/platform.mk
 include board/board.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
+include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
@@ -123,7 +124,7 @@ CSRC = $(STARTUPSRC) \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC =
+CPPSRC = $(CHCPPSRC)
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -152,7 +153,8 @@ ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 INCDIR = $(CHIBIOS)/os/license \
          $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
          $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
-         $(CHIBIOS)/os/hal/lib/streams $(CHIBIOS)/os/various
+         $(CHIBIOS)/os/hal/lib/streams $(CHIBIOS)/os/various \
+				 $(CHCPPINC)
 
 #
 # Project, sources and paths
@@ -202,8 +204,10 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
-
+UDEFS += -DUAVCAN_STM32_CHIBIOS=1 \
+         -DUAVCAN_STM32_TIMER_NUMBER=6 \
+         -DUAVCAN_STM32_NUM_IFACES=1 \
+				 -DUAVCAN_TINY=1
 # Define ASM defines here
 UADEFS =
 
@@ -215,6 +219,20 @@ ULIBDIR =
 
 # List all user libraries here
 ULIBS =
+
+# Add libuavcan core sources and includes
+include $(LIBUAVCAN)/libuavcan/include.mk
+CPPSRC += $(LIBUAVCAN_SRC)
+UINCDIR += $(LIBUAVCAN_INC)
+
+# Add STM32 driver sources and includes
+include $(LIBUAVCAN)/libuavcan_drivers/stm32/driver/include.mk
+CPPSRC += $(LIBUAVCAN_STM32_SRC)
+UINCDIR += $(LIBUAVCAN_STM32_INC)
+
+# Invoke DSDL compiler and add its default output directory to the include search path
+$(info $(shell $(LIBUAVCAN_DSDLC) $(UAVCAN_DSDL_DIR)))
+UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
 
 #
 # End of user defines
