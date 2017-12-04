@@ -102,9 +102,7 @@ include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
 # Other files (optional).
-include $(CHIBIOS)/test/lib/test.mk
-include $(CHIBIOS)/test/rt/rt_test.mk
-include $(CHIBIOS)/test/oslib/oslib_test.mk
+include $(CHIBIOS)/test/rt/test.mk
 
 # Define linker script file here
 LDSCRIPT= $(STARTUPLD)/STM32F072xB.ld
@@ -119,7 +117,7 @@ CSRC = $(STARTUPSRC) \
        $(PLATFORMSRC) \
        $(BOARDSRC) \
        $(TESTSRC) \
-	   $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
+			 $(CHIBIOS)/os/various/syscalls.c \
        main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -207,7 +205,8 @@ CPPWARN = -Wall -Wextra -Wundef
 UDEFS += -DUAVCAN_STM32_CHIBIOS=1 \
          -DUAVCAN_STM32_TIMER_NUMBER=6 \
          -DUAVCAN_STM32_NUM_IFACES=1 \
-				 -DUAVCAN_TINY=1
+				 -DUAVCAN_TINY=1 \
+				 -DSTM32F0XX
 # Define ASM defines here
 UADEFS =
 

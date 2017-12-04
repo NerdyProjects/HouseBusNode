@@ -17,8 +17,6 @@
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
-#include "rt_test_root.h"
-#include "oslib_test_root.h"
 
 /*
  * Green LED blinker thread, times are in milliseconds.
