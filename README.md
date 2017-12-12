@@ -132,6 +132,11 @@ Please have a look at the schematics when wanting to use conflicting connectors 
 
 # Software description
 
+## USB CAN Adapter firmware
+The hardware should be compatible to the [CandleLight](https://github.com/HubertD/candleLight) project, so you can just use the [CandleLight Firmware](https://github.com/HubertD/candleLight_fw).
+Just one change: This hardware does not supply any external oscillator, so the firmware might need to be adapted.
+This firmware has not been tested.
+
 ## Ideas
 
 ## RTOS
