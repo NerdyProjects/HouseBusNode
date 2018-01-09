@@ -3,3 +3,4 @@ sw/build
 sw/config.mk
 sw/.dep
 sw/dsdlc_generated
+sw/extern
