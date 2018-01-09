@@ -4,3 +4,4 @@ sw/config.mk
 sw/.dep
 sw/dsdlc_generated
 sw/extern
+sw/dsdlc_generated
