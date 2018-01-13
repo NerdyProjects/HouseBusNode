@@ -11,7 +11,7 @@ endif
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
-  USE_COPT = 
+  USE_COPT =
 endif
 
 # C++ specific options here (added to USE_OPT).
@@ -26,7 +26,7 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT = 
+  USE_LDOPT =
 endif
 
 # Enable this if you want link time optimizations (LTO)
@@ -115,14 +115,15 @@ CSRC = $(STARTUPSRC) \
        $(OSALSRC) \
        $(HALSRC) \
        $(PLATFORMSRC) \
-       $(BOARDSRC) \
        $(TESTSRC) \
-			 $(CHIBIOS)/os/various/syscalls.c \
-       main.c
+			 $(CHIBIOS)/os/various/syscalls.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC = $(CHCPPSRC)
+CPPSRC = $(CHCPPSRC) \
+         $(BOARDSRC) \
+         main.cpp \
+         uavcan_node.cpp
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -205,8 +206,10 @@ CPPWARN = -Wall -Wextra -Wundef
 UDEFS += -DUAVCAN_STM32_CHIBIOS=1 \
          -DUAVCAN_STM32_TIMER_NUMBER=6 \
          -DUAVCAN_STM32_NUM_IFACES=1 \
-				 -DUAVCAN_TINY=1 \
-				 -DSTM32F0XX
+         -DSTM32F0XX \
+         -DPRODUCT_ID_STRING=\"Testknoten1\"
+         #-DUAVCAN_TINY=1 \
+
 # Define ASM defines here
 UADEFS =
 
@@ -230,7 +233,7 @@ CPPSRC += $(LIBUAVCAN_STM32_SRC)
 UINCDIR += $(LIBUAVCAN_STM32_INC)
 
 # Invoke DSDL compiler and add its default output directory to the include search path
-$(info $(shell $(LIBUAVCAN_DSDLC) $(UAVCAN_DSDL_DIR)))
+$(info $(shell $(LIBUAVCAN_DSDLC) -vv $(UAVCAN_DSDL_DIR) $(project_dir)/dsdl/vendor))
 UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
 
 #
