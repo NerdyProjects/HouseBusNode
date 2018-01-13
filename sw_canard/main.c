@@ -18,6 +18,7 @@
 #include "hal.h"
 #include "chprintf.h"
 #include "ch_test.h"
+#include "node.h"
 
 /*
  * Green LED blinker thread, times are in milliseconds.
@@ -28,9 +29,9 @@ static THD_FUNCTION(Thread1, arg) {
   (void)arg;
   chRegSetThreadName("blinker");
   while (true) {
-    palClearPad(GPIOA, GPIOA_LED_GREEN);
+    palClearPad(GPIOA, GPIOA_LED_A);
     chThdSleepMilliseconds(500);
-    palSetPad(GPIOA, GPIOA_LED_GREEN);
+    palSetPad(GPIOA, GPIOA_LED_A);
     chThdSleepMilliseconds(500);
   }
 }
@@ -56,6 +57,8 @@ int main(void) {
   sdStart(&SD1, NULL);
   chprintf((BaseSequentialStream *)&SD1, "SYSCLK=%u\r\n", STM32_SYSCLK);
 
+  node_init();
+
   /*
    * Creates the blinker thread.
    */
@@ -66,8 +69,6 @@ int main(void) {
    * sleeping in a loop and check the button state.
    */
   while (true) {
-    if (!palReadPad(GPIOC, GPIOC_BUTTON))
-      test_execute((BaseSequentialStream *)&SD1);
     chThdSleepMilliseconds(500);
   }
 }
