@@ -53,8 +53,8 @@ int main(void) {
   /*
    * Activates the serial driver 2 using the driver default configuration.
    */
-  sdStart(&SD2, NULL);
-  chprintf((BaseSequentialStream *)&SD2, "SYSCLK=%u\r\n", STM32_SYSCLK);
+  sdStart(&SD1, NULL);
+  chprintf((BaseSequentialStream *)&SD1, "SYSCLK=%u\r\n", STM32_SYSCLK);
 
   /*
    * Creates the blinker thread.
@@ -67,7 +67,7 @@ int main(void) {
    */
   while (true) {
     if (!palReadPad(GPIOC, GPIOC_BUTTON))
-      test_execute((BaseSequentialStream *)&SD2);
+      test_execute((BaseSequentialStream *)&SD1);
     chThdSleepMilliseconds(500);
   }
 }
