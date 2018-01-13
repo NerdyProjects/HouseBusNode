@@ -1,0 +1,10 @@
+#
+# Transfers the status of a general heating system
+# meanings of temperatures and pumps are system specific.
+# heating flag should indicate the heating system itself running
+# e.g. gas/wood burning, sun shining, heat pump on etc.
+# 
+
+Temperature[<=7] temperature
+bool heating
+bool[<=3] pump_state

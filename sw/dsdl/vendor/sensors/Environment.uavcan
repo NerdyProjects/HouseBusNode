@@ -1,0 +1,8 @@
+#
+#  Environmental sensor
+#  Non-existent values should be "NaN"
+#
+
+Temperature temperature
+Humidity humidity
+Pressure pressure

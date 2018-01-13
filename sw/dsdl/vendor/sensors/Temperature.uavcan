@@ -1,0 +1,5 @@
+#
+# Static temperature.
+#
+
+float16 temperature              # Kelvin
