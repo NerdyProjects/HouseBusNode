@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 --specs=nosys.specs
 endif
 
 # C specific options here (added to USE_OPT).
@@ -111,10 +111,12 @@ CSRC = $(STARTUPSRC) \
        $(HALSRC) \
        $(PLATFORMSRC) \
        $(TESTSRC) \
-	   $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
-	   libcanard/canard.c \
-	   node.c \
-	   board/board.c \
+       $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
+       $(CHIBIOS)/os/various/syscalls.c \
+       libcanard/canard.c \
+       libcanard/drivers/stm32/canard_stm32.c \
+       node.c \
+       board/board.c \
        main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -151,6 +153,8 @@ INCDIR = $(CHIBIOS)/os/license \
          board \
          $(CHIBIOS)/os/hal/lib/streams $(CHIBIOS)/os/various \
          libcanard
+
+
 
 #
 # Project, sources and paths
@@ -200,7 +204,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
+UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\"
 
 # Define ASM defines here
 UADEFS =
