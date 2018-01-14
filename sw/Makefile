@@ -2,21 +2,20 @@
 # Build global options
 # NOTE: Can be overridden externally.
 #
-project_dir := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
+  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 --specs=nosys.specs
 endif
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
-  USE_COPT =
+  USE_COPT = 
 endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -pedantic -std=c++11 -fno-rtti -fno-threadsafe-statics
+  USE_CPPOPT = -fno-rtti
 endif
 
 # Enable this if you want the linker to remove unused code and data
@@ -26,7 +25,7 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT =
+  USE_LDOPT = 
 endif
 
 # Enable this if you want link time optimizations (LTO)
@@ -41,7 +40,7 @@ endif
 
 # Enable this if you want to see the full log while compiling.
 ifeq ($(USE_VERBOSE_COMPILE),)
-  USE_VERBOSE_COMPILE = yes
+  USE_VERBOSE_COMPILE = no
 endif
 
 # If enabled, this option makes the build process faster by not compiling
@@ -53,8 +52,6 @@ endif
 #
 # Build global options
 ##############################################################################
-
-include config.mk
 
 ##############################################################################
 # Architecture or project specific options
@@ -86,18 +83,16 @@ endif
 #
 
 # Define project name here
-PROJECT = busnode
-
+PROJECT = ch
 
 # Imported source files and paths
+CHIBIOS = ChibiOS
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f0xx.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F0xx/platform.mk
-include board/board.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
-include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
@@ -116,14 +111,17 @@ CSRC = $(STARTUPSRC) \
        $(HALSRC) \
        $(PLATFORMSRC) \
        $(TESTSRC) \
-			 $(CHIBIOS)/os/various/syscalls.c
+       $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
+       $(CHIBIOS)/os/various/syscalls.c \
+       libcanard/canard.c \
+       libcanard/drivers/stm32/canard_stm32.c \
+       node.c \
+       board/board.c \
+       main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
-CPPSRC = $(CHCPPSRC) \
-         $(BOARDSRC) \
-         main.cpp \
-         uavcan_node.cpp
+CPPSRC =
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -151,9 +149,12 @@ ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
 INCDIR = $(CHIBIOS)/os/license \
          $(STARTUPINC) $(KERNINC) $(PORTINC) $(OSALINC) \
-         $(HALINC) $(PLATFORMINC) $(BOARDINC) $(TESTINC) \
+         $(HALINC) $(PLATFORMINC) $(TESTINC) \
+         board \
          $(CHIBIOS)/os/hal/lib/streams $(CHIBIOS)/os/various \
-				 $(CHCPPINC)
+         libcanard
+
+
 
 #
 # Project, sources and paths
@@ -203,12 +204,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS += -DUAVCAN_STM32_CHIBIOS=1 \
-         -DUAVCAN_STM32_TIMER_NUMBER=6 \
-         -DUAVCAN_STM32_NUM_IFACES=1 \
-         -DSTM32F0XX \
-         -DPRODUCT_ID_STRING=\"Testknoten1\"
-         #-DUAVCAN_TINY=1 \
+UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\"
 
 # Define ASM defines here
 UADEFS =
@@ -221,20 +217,6 @@ ULIBDIR =
 
 # List all user libraries here
 ULIBS =
-
-# Add libuavcan core sources and includes
-include $(LIBUAVCAN)/libuavcan/include.mk
-CPPSRC += $(LIBUAVCAN_SRC)
-UINCDIR += $(LIBUAVCAN_INC)
-
-# Add STM32 driver sources and includes
-include $(LIBUAVCAN)/libuavcan_drivers/stm32/driver/include.mk
-CPPSRC += $(LIBUAVCAN_STM32_SRC)
-UINCDIR += $(LIBUAVCAN_STM32_INC)
-
-# Invoke DSDL compiler and add its default output directory to the include search path
-$(info $(shell $(LIBUAVCAN_DSDLC) -vv $(UAVCAN_DSDL_DIR) $(project_dir)/dsdl/vendor))
-UINCDIR += dsdlc_generated      # This is where the generated headers are stored by default
 
 #
 # End of user defines

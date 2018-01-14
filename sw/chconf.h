@@ -29,7 +29,6 @@
 #define CHCONF_H
 
 #define _CHIBIOS_RT_CONF_
-#define _CHIBIOS_RT_CONF_VER_5_0_
 
 /*===========================================================================*/
 /**
@@ -272,7 +271,7 @@
  *
  * @note    The default is @p TRUE.
  */
-#define CH_CFG_USE_MEMCORE                  TRUE
+#define CH_CFG_USE_MEMCORE                  FALSE
 
 /**
  * @brief   Heap Allocator APIs.
@@ -284,7 +283,7 @@
  *          @p CH_CFG_USE_SEMAPHORES.
  * @note    Mutexes are recommended.
  */
-#define CH_CFG_USE_HEAP                     TRUE
+#define CH_CFG_USE_HEAP                     FALSE
 
 /**
  * @brief   Memory Pools Allocator APIs.
@@ -293,16 +292,7 @@
  *
  * @note    The default is @p TRUE.
  */
-#define CH_CFG_USE_MEMPOOLS                 TRUE
-
-/**
- * @brief  Objects FIFOs APIs.
- * @details If enabled then the objects FIFOs APIs are included
- *          in the kernel.
- *
- * @note    The default is @p TRUE.
- */
-#define CH_CFG_USE_OBJ_FIFOS                TRUE
+#define CH_CFG_USE_MEMPOOLS                 FALSE
 
 /**
  * @brief   Dynamic Threads APIs.
@@ -313,57 +303,7 @@
  * @note    Requires @p CH_CFG_USE_WAITEXIT.
  * @note    Requires @p CH_CFG_USE_HEAP and/or @p CH_CFG_USE_MEMPOOLS.
  */
-#define CH_CFG_USE_DYNAMIC                  TRUE
-
-/** @} */
-
-/*===========================================================================*/
-/**
- * @name Objects factory options
- * @{
- */
-/*===========================================================================*/
-
-/**
- * @brief   Objects Factory APIs.
- * @details If enabled then the objects factory APIs are included in the
- *          kernel.
- *
- * @note    The default is @p FALSE.
- */
-#define CH_CFG_USE_FACTORY                  TRUE
-
-/**
- * @brief   Maximum length for object names.
- * @details If the specified length is zero then the name is stored by
- *          pointer but this could have unintended side effects.
- */
-#define CH_CFG_FACTORY_MAX_NAMES_LENGTH     8
-
-/**
- * @brief   Enables the registry of generic objects.
- */
-#define CH_CFG_FACTORY_OBJECTS_REGISTRY     TRUE
-
-/**
- * @brief   Enables factory for generic buffers.
- */
-#define CH_CFG_FACTORY_GENERIC_BUFFERS      TRUE
-
-/**
- * @brief   Enables factory for semaphores.
- */
-#define CH_CFG_FACTORY_SEMAPHORES           TRUE
-
-/**
- * @brief   Enables factory for mailboxes.
- */
-#define CH_CFG_FACTORY_MAILBOXES            TRUE
-
-/**
- * @brief   Enables factory for objects FIFOs.
- */
-#define CH_CFG_FACTORY_OBJ_FIFOS            TRUE
+#define CH_CFG_USE_DYNAMIC                  FALSE
 
 /** @} */
 

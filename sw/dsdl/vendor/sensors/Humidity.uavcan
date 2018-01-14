@@ -1,5 +1,0 @@
-#
-# Relative humidity
-#
-
-float16 humidity        # from 0..1

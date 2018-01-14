@@ -1,6 +1,6 @@
 [submodule "sw_canard/ChibiOS"]
-	path = sw_canard/ChibiOS
+	path = sw/ChibiOS
 	url = git@github.com:ChibiOS/ChibiOS.git
 [submodule "sw_canard/libcanard"]
-	path = sw_canard/libcanard
+	path = sw/libcanard
 	url = https://github.com/UAVCAN/libcanard
