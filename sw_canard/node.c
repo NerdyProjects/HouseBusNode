@@ -174,15 +174,25 @@ static void process1HzTasks(uint64_t timestamp_usec)
   node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
 }
 
+static void canDriverEnable(uint8_t enable)
+{
+  if(enable)
+    palClearPad(GPIOC, GPIOC_CAN_SUSPEND);
+  else
+    palSetPad(GPIOC, GPIOC_CAN_SUSPEND);
+}
+
 /**
  * Transmits all frames from the TX queue, receives up to one frame.
+ * Returns the number of frames received.
  */
-void processTxRxOnce(void)
+int processTxRxOnce(void)
 {
   // Transmitting
   for (const CanardCANFrame* txf = NULL;
       (txf = canardPeekTxQueue(&canard)) != NULL;)
   {
+    canDriverEnable(1);
     const int tx_res = canardSTM32Transmit(txf);
     if (tx_res < 0)         // Failure - drop the frame and report
     {
@@ -191,6 +201,7 @@ void processTxRxOnce(void)
     }
     else if (tx_res > 0)    // Success - just drop the frame
     {
+      DEBUG("TX_FRAME\n");
       canardPopTxQueue(&canard);
     }
     else                    // Timeout - just exit and try again later
@@ -210,11 +221,10 @@ void processTxRxOnce(void)
   else if (rx_res > 0)        // Success - process the frame
   {
     canardHandleRxFrame(&canard, &rx_frame, timestamp);
+    return 1;
   }
-  else
-  {
-    ;                       // Timeout - nothing to do
-  }
+  return 0;
+
 }
 
 static void can_enable(void)
@@ -228,9 +238,10 @@ static void can_enable(void)
   NVIC_ClearPendingIRQ(CEC_CAN_IRQn);
 
   RCC->APB1ENR |= RCC_APB1ENR_CANEN;
+  palSetPadMode(GPIOB, 9, PAL_MODE_ALTERNATE(4));
 }
 
-static THD_WORKING_AREA(waCanThread, 128);
+static THD_WORKING_AREA(waCanThread, 512);
 static THD_FUNCTION(CanThread, arg)
 {
 
@@ -245,7 +256,12 @@ static THD_FUNCTION(CanThread, arg)
       process1HzTasks(ST2US_64(currentTime)); /* Copy of LL_ST2US function to preserve 64 bit width */
       lastInvocation = currentTime; /* Intentionally exclude processing time */
     }
-    processTxRxOnce();
+    if(processTxRxOnce() == 0) {
+      /* Quirks for now, just sleep a bit when there was nothing to receive.
+       * Should be implemented via IRQ at some point.
+       */
+      chThdSleep(MS2ST(10));
+    }
 
   }
 }
