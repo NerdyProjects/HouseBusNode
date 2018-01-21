@@ -10,7 +10,11 @@
 
 #include "chprintf.h"
 
+#ifdef NDEBUG
+#define DEBUG(...)
+#else
 #define DEBUG(...) chprintf((BaseSequentialStream *) &STDOUT_SD, __VA_ARGS__)
+#endif
 #define ERROR(...) chprintf((BaseSequentialStream *) &STDOUT_SD, __VA_ARGS__)
 
 static inline uint64_t ST2US_64(systime_t st)
@@ -25,7 +29,6 @@ static inline uint64_t getMonotonicTimestampUSec(void)
   systime_t currentTime = chVTGetSystemTime();
   return ST2US_64(currentTime);
 }
-
 
 
 #endif /* UTIL_H_ */

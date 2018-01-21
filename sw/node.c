@@ -118,6 +118,22 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
   return false;
 }
 
+static void broadcast_node_status(void) {
+  uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE];
+  makeNodeStatusMessage(buffer);
+
+  static uint8_t transfer_id;
+
+  const int bc_res = canardBroadcast(&canard,
+      UAVCAN_NODE_STATUS_DATA_TYPE_SIGNATURE,
+      UAVCAN_NODE_STATUS_DATA_TYPE_ID, &transfer_id,
+      CANARD_TRANSFER_PRIORITY_LOW, buffer, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
+  if (bc_res <= 0)
+  {
+    ERROR("Could not broadcast node status; error %d\n", bc_res);
+  }
+}
+
 /**
  * This function is called at 1 Hz rate from the main loop.
  */
@@ -151,27 +167,21 @@ static void process1HzTasks(uint64_t timestamp_usec)
       DEBUG("WARNING: ENLARGE MEMORY POOL");
     }
   }
+  /* Printing can error statistics */
+  {
+    CanardSTM32Stats stats = canardSTM32GetStats();
+    if(stats.error_count > 0 || stats.rx_overflow_count > 0) {
+      ERROR("ERR: %ld OVF: %ld\n", stats.error_count, stats.rx_overflow_count);
+    }
+  }
 
   /*
    * Transmitting the node status message periodically.
    */
-  {
-    uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE];
-    makeNodeStatusMessage(buffer);
-
-    static uint8_t transfer_id;
-
-    const int bc_res = canardBroadcast(&canard,
-        UAVCAN_NODE_STATUS_DATA_TYPE_SIGNATURE,
-        UAVCAN_NODE_STATUS_DATA_TYPE_ID, &transfer_id,
-        CANARD_TRANSFER_PRIORITY_LOW, buffer, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
-    if (bc_res <= 0)
-    {
-      ERROR("Could not broadcast node status; error %d\n", bc_res);
-    }
-  }
-
+  broadcast_node_status();
   node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
+
+
 }
 
 static void canDriverEnable(uint8_t enable)
@@ -192,7 +202,6 @@ int processTxRxOnce(void)
   for (const CanardCANFrame* txf = NULL;
       (txf = canardPeekTxQueue(&canard)) != NULL;)
   {
-    canDriverEnable(1);
     const int tx_res = canardSTM32Transmit(txf);
     if (tx_res < 0)         // Failure - drop the frame and report
     {
@@ -201,7 +210,6 @@ int processTxRxOnce(void)
     }
     else if (tx_res > 0)    // Success - just drop the frame
     {
-      DEBUG("TX_FRAME\n");
       canardPopTxQueue(&canard);
     }
     else                    // Timeout - just exit and try again later
@@ -229,22 +237,14 @@ int processTxRxOnce(void)
 
 static void can_enable(void)
 {
+  rccEnableCAN1(FALSE);
   RCC->APB1RSTR |= (RCC_APB1RSTR_CANRST);
   RCC->APB1RSTR &= ~(RCC_APB1RSTR_CANRST);
-
-  CAN->IER = 0;
-  CAN->MCR = CAN_MCR_RESET;      // Software reset
-
-  NVIC_ClearPendingIRQ(CEC_CAN_IRQn);
-
-  RCC->APB1ENR |= RCC_APB1ENR_CANEN;
-  palSetPadMode(GPIOB, 9, PAL_MODE_ALTERNATE(4));
 }
 
-static THD_WORKING_AREA(waCanThread, 512);
+static THD_WORKING_AREA(waCanThread, 1024);
 static THD_FUNCTION(CanThread, arg)
 {
-
   (void) arg;
   chRegSetThreadName("Can");
   systime_t lastInvocation = 0;
@@ -256,12 +256,13 @@ static THD_FUNCTION(CanThread, arg)
       process1HzTasks(ST2US_64(currentTime)); /* Copy of LL_ST2US function to preserve 64 bit width */
       lastInvocation = currentTime; /* Intentionally exclude processing time */
     }
-    if(processTxRxOnce() == 0) {
-      /* Quirks for now, just sleep a bit when there was nothing to receive.
-       * Should be implemented via IRQ at some point.
-       */
-      chThdSleep(MS2ST(10));
+    while(processTxRxOnce() == 1) {
+      /* send/receive in one block as long as there are packets coming in. */
     }
+    /* We are forced to read packets at least once per millisecond (at 250kbps), otherwise we might drop a packet due to RX
+     * buffer overflow (hardware fifo with 3 packets)
+     */
+    chThdSleep(MS2ST(1));
 
   }
 }
@@ -270,15 +271,15 @@ int node_init(void)
 {
   int res;
   CanardSTM32CANTimings timings;
-
+  canDriverEnable(0);
   can_enable();
+  canDriverEnable(1);
 
   res = canardSTM32ComputeCANTimings(STM32_PCLK, 250000UL, &timings);
   if (res != 0)
   {
     return res;
   }
-
   res = canardSTM32Init(&timings, CanardSTM32IfaceModeNormal);
   if (res != 0)
   {
@@ -290,7 +291,6 @@ int node_init(void)
    */
   canardInit(&canard, canard_memory_pool, sizeof(canard_memory_pool),
       onTransferReceived, shouldAcceptTransfer, NULL);
-
   canardSetLocalNodeID(&canard, 2);
   chThdCreateStatic(waCanThread, sizeof(waCanThread), NORMALPRIO, CanThread,
       NULL);

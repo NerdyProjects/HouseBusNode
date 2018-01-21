@@ -294,7 +294,7 @@
  *          default configuration.
  */
 #if !defined(SERIAL_DEFAULT_BITRATE) || defined(__DOXYGEN__)
-#define SERIAL_DEFAULT_BITRATE      38400
+#define SERIAL_DEFAULT_BITRATE      115200
 #endif
 
 /**
@@ -305,7 +305,7 @@
  *          buffers.
  */
 #if !defined(SERIAL_BUFFERS_SIZE) || defined(__DOXYGEN__)
-#define SERIAL_BUFFERS_SIZE         128
+#define SERIAL_BUFFERS_SIZE         96
 #endif
 
 /*===========================================================================*/

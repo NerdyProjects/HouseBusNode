@@ -5,7 +5,7 @@
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16 --specs=nosys.specs
+  USE_OPT = -O2 -ggdb -fomit-frame-pointer -falign-functions=16
 endif
 
 # C specific options here (added to USE_OPT).
@@ -60,13 +60,13 @@ endif
 # Stack size to be allocated to the Cortex-M process stack. This stack is
 # the stack used by the main() thread.
 ifeq ($(USE_PROCESS_STACKSIZE),)
-  USE_PROCESS_STACKSIZE = 0x200
+  USE_PROCESS_STACKSIZE = 0x100
 endif
 
 # Stack size to the allocated to the Cortex-M main/exceptions stack. This
 # stack is used for processing interrupts and exceptions.
 ifeq ($(USE_EXCEPTIONS_STACKSIZE),)
-  USE_EXCEPTIONS_STACKSIZE = 0x200
+  USE_EXCEPTIONS_STACKSIZE = 0x100
 endif
 
 # Enables the use of FPU (no, softfp, hard).
@@ -96,8 +96,6 @@ include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
-# Other files (optional).
-include $(CHIBIOS)/test/rt/test.mk
 
 # Define linker script file here
 LDSCRIPT= $(STARTUPLD)/STM32F072xB.ld
@@ -113,11 +111,12 @@ CSRC = $(STARTUPSRC) \
        $(TESTSRC) \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
        $(CHIBIOS)/os/various/syscalls.c \
-       libcanard/canard.c \
-       libcanard/drivers/stm32/canard_stm32.c \
        node.c \
        board/board.c \
-       main.c
+       main.c \
+       libcanard/drivers/stm32/canard_stm32.c \
+       libcanard/canard.c
+
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -204,7 +203,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\"
+UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\" -DCANARD_ASSERT=util_assert
 
 # Define ASM defines here
 UADEFS =

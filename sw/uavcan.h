@@ -32,6 +32,11 @@
 #define UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE                    0xee468a8121c46a9e
 #define UAVCAN_GET_NODE_INFO_DATA_TYPE_ID                           1
 
+#define HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE                     (56/8)
+#define HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID                     20000UL
+#define HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE              0x1afc625dcbb1c01f
+
+
 #define UNIQUE_ID_LENGTH_BYTES                                      12
 
 #endif /* UAVCAN_H_ */

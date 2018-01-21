@@ -148,7 +148,7 @@
  *
  * @note    The default is @p TRUE.
  */
-#define CH_CFG_USE_REGISTRY                 TRUE
+#define CH_CFG_USE_REGISTRY                 FALSE
 
 /**
  * @brief   Threads synchronization APIs.
@@ -157,7 +157,7 @@
  *
  * @note    The default is @p TRUE.
  */
-#define CH_CFG_USE_WAITEXIT                 TRUE
+#define CH_CFG_USE_WAITEXIT                 FALSE
 
 /**
  * @brief   Semaphores APIs.

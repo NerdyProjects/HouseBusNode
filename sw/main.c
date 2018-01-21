@@ -17,26 +17,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "chprintf.h"
-#include "ch_test.h"
 #include "node.h"
-
-/*
- * Green LED blinker thread, times are in milliseconds.
- */
-static THD_WORKING_AREA(waThread1, 128);
-static THD_FUNCTION(Thread1, arg)
-{
-
-  (void) arg;
-  chRegSetThreadName("blinker");
-  while (true)
-  {
-    palClearPad(GPIOA, GPIOA_LED_A);
-    chThdSleepMilliseconds(500);
-    palSetPad(GPIOA, GPIOA_LED_A);
-    chThdSleepMilliseconds(500);
-  }
-}
 
 /*
  * Application entry point.
@@ -63,11 +44,6 @@ int main(void)
   node_init();
 
   /*
-   * Creates the blinker thread.
-   */
-  chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
-
-  /*
    * Normal main() thread activity, in this demo it does nothing except
    * sleeping in a loop and check the button state.
    */
@@ -80,4 +56,12 @@ int main(void)
 void usleep(int microseconds)
 {
   chThdSleepMicroseconds(microseconds);
+}
+
+int util_assert(int x) {
+  if(!x) {
+    while(1)
+      ;
+  }
+  return x;
 }
