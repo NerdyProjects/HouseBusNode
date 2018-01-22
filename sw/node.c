@@ -8,12 +8,17 @@
 #include <hal.h>
 #include <ch.h>
 #include <canard.h>
-#include <drivers/stm32/canard_stm32.h>
+#include <string.h>
 #include "uavcan.h"
 #include "util.h"
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
+
+/* flag to avoid race condition before a TX mailbox is marked in use by the hardware after we know we will use it.
+ * Should be set and reset shortly before/after enqueueing a tx request.
+ */
+static volatile uint8_t can_driver_in_use = 0;
 
 /*
  * Node status variables
@@ -167,13 +172,6 @@ static void process1HzTasks(uint64_t timestamp_usec)
       DEBUG("WARNING: ENLARGE MEMORY POOL");
     }
   }
-  /* Printing can error statistics */
-  {
-    CanardSTM32Stats stats = canardSTM32GetStats();
-    if(stats.error_count > 0 || stats.rx_overflow_count > 0) {
-      ERROR("ERR: %ld OVF: %ld\n", stats.error_count, stats.rx_overflow_count);
-    }
-  }
 
   /*
    * Transmitting the node status message periodically.
@@ -192,24 +190,37 @@ static void canDriverEnable(uint8_t enable)
     palSetPad(GPIOC, GPIOC_CAN_SUSPEND);
 }
 
+/* check if the can driver is in use and disable accordingly.
+ * This method should be callable from ISR context.
+ */
+static void checkDisableCanDriver(void) {
+//  uint32_t tsr = BXCAN->TSR;
+//  if(tsr & (CANARD_STM32_CAN_TSR_TME0 | CANARD_STM32_CAN_TSR_TME1 | CANARD_STM32_CAN_TSR_TME2) == 0)
+  {
+    /* All tx mailboxes empty -> we might disable the can transceiver now */
+    if(can_driver_in_use == 0) {
+      /* also there is no pending TX request, so we can actually disable it. */
+      canDriverEnable(0);
+    }
+  }
+}
+
 /**
  * Transmits all frames from the TX queue, receives up to one frame.
- * Returns the number of frames received.
  */
-int processTxRxOnce(void)
+int processTxRx(void)
 {
   // Transmitting
   for (const CanardCANFrame* txf = NULL;
       (txf = canardPeekTxQueue(&canard)) != NULL;)
   {
-    const int tx_res = canardSTM32Transmit(txf);
-    if (tx_res < 0)         // Failure - drop the frame and report
-    {
-      canardPopTxQueue(&canard);
-      DEBUG("Transmit error %d, frame dropped\n", tx_res);
-    }
-    else if (tx_res > 0)    // Success - just drop the frame
-    {
+    CANTxFrame txmsg;
+    txmsg.DLC = txf->data_len;
+    memcpy(txmsg.data8, txf->data, 8);
+    txmsg.EID = txf->id & CANARD_CAN_EXT_ID_MASK;
+    txmsg.IDE = 1;
+    txmsg.RTR = (txf->id & CANARD_CAN_FRAME_RTR) >> 30 ;
+    if (canTransmit(&CAND1, CAN_ANY_MAILBOX, &txmsg, TIME_IMMEDIATE) == MSG_OK) {
       canardPopTxQueue(&canard);
     }
     else                    // Timeout - just exit and try again later
@@ -220,26 +231,26 @@ int processTxRxOnce(void)
 
   // Receiving
   CanardCANFrame rx_frame;
+  CANRxFrame rxmsg;
   const uint64_t timestamp = getMonotonicTimestampUSec();
-  const int rx_res = canardSTM32Receive(&rx_frame);
-  if (rx_res < 0)             // Failure - report
+
+  const int rx_res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX,&rxmsg, MS2ST(10));
+  if (rx_res == MSG_OK)        // Success - process the frame
   {
-    DEBUG("Receive error %d\n", rx_res);
-  }
-  else if (rx_res > 0)        // Success - process the frame
-  {
+    memcpy(rx_frame.data, rxmsg.data8, 8);
+    rx_frame.data_len = rxmsg.DLC;
+    if(rxmsg.IDE) {
+      rx_frame.id = CANARD_CAN_FRAME_EFF | rxmsg.EID;
+    } else {
+      rx_frame.id = rxmsg.SID;
+    }
+    if(rxmsg.RTR) {
+      rx_frame.id = CANARD_CAN_FRAME_RTR;
+    }
+
     canardHandleRxFrame(&canard, &rx_frame, timestamp);
-    return 1;
   }
   return 0;
-
-}
-
-static void can_enable(void)
-{
-  rccEnableCAN1(FALSE);
-  RCC->APB1RSTR |= (RCC_APB1RSTR_CANRST);
-  RCC->APB1RSTR &= ~(RCC_APB1RSTR_CANRST);
 }
 
 static THD_WORKING_AREA(waCanThread, 1024);
@@ -256,35 +267,21 @@ static THD_FUNCTION(CanThread, arg)
       process1HzTasks(ST2US_64(currentTime)); /* Copy of LL_ST2US function to preserve 64 bit width */
       lastInvocation = currentTime; /* Intentionally exclude processing time */
     }
-    while(processTxRxOnce() == 1) {
-      /* send/receive in one block as long as there are packets coming in. */
-    }
-    /* We are forced to read packets at least once per millisecond (at 250kbps), otherwise we might drop a packet due to RX
-     * buffer overflow (hardware fifo with 3 packets)
-     */
-    chThdSleep(MS2ST(1));
-
+    processTxRx();
   }
 }
 
 int node_init(void)
 {
-  int res;
-  CanardSTM32CANTimings timings;
-  canDriverEnable(0);
-  can_enable();
-  canDriverEnable(1);
+  /* values for 87.5% samplepoint at 48 MHz and 125000bps */
+  static const CANConfig cancfg = {
+    CAN_MCR_ABOM | CAN_MCR_AWUM,
+    CAN_BTR_SJW(0) | CAN_BTR_TS2(1) |
+    CAN_BTR_TS1(12) | CAN_BTR_BRP(23)
+  };
 
-  res = canardSTM32ComputeCANTimings(STM32_PCLK, 250000UL, &timings);
-  if (res != 0)
-  {
-    return res;
-  }
-  res = canardSTM32Init(&timings, CanardSTM32IfaceModeNormal);
-  if (res != 0)
-  {
-    return res;
-  }
+  canDriverEnable(1);
+  canStart(&CAND1, &cancfg);
 
   /*
    * Initializing the Libcanard instance.

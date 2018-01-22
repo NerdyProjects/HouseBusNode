@@ -48,7 +48,7 @@
  * @brief   Enables the CAN subsystem.
  */
 #if !defined(HAL_USE_CAN) || defined(__DOXYGEN__)
-#define HAL_USE_CAN                 FALSE
+#define HAL_USE_CAN                 TRUE
 #endif
 
 /**
@@ -205,7 +205,7 @@
  * @brief   Sleep mode related APIs inclusion switch.
  */
 #if !defined(CAN_USE_SLEEP_MODE) || defined(__DOXYGEN__)
-#define CAN_USE_SLEEP_MODE          TRUE
+#define CAN_USE_SLEEP_MODE          FALSE
 #endif
 
 /*===========================================================================*/

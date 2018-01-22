@@ -116,7 +116,6 @@ CSRC = $(STARTUPSRC) \
        main.c \
        bme280_node.c \
        drivers/bme280.c \
-       libcanard/drivers/stm32/canard_stm32.c \
        libcanard/canard.c \
        exception.c
 
