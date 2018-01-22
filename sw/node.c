@@ -12,7 +12,7 @@
 #include "uavcan.h"
 #include "util.h"
 
-static CanardInstance canard;                       ///< The library instance
+CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
 
 /*
