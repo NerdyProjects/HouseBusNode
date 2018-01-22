@@ -18,6 +18,15 @@
 #include "hal.h"
 #include "chprintf.h"
 #include "node.h"
+#include "bme280_node.h"
+
+static const I2CConfig i2cconfig = {
+  STM32_TIMINGR_PRESC(0U) |
+  STM32_TIMINGR_SCLDEL(3U) | STM32_TIMINGR_SDADEL(1U) |
+  STM32_TIMINGR_SCLH(3U)  | STM32_TIMINGR_SCLL(9U),
+  0,
+  0
+};
 
 /*
  * Application entry point.
@@ -42,6 +51,10 @@ int main(void)
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
 
   node_init();
+
+  i2cStart(&I2CD1, &i2cconfig);
+
+  bme280_node_init();
 
   /*
    * Normal main() thread activity, in this demo it does nothing except

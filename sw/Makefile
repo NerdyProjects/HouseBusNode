@@ -114,8 +114,11 @@ CSRC = $(STARTUPSRC) \
        node.c \
        board/board.c \
        main.c \
+       bme280_node.c \
+       drivers/bme280.c \
        libcanard/drivers/stm32/canard_stm32.c \
-       libcanard/canard.c
+       libcanard/canard.c \
+       exception.c
 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
