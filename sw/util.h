@@ -27,7 +27,7 @@ static inline uint64_t ST2US_64(systime_t st)
 static inline uint64_t getMonotonicTimestampUSec(void)
 {
   systime_t currentTime = chVTGetSystemTime();
-  return ST2US_64(currentTime);
+  return (uint64_t)currentTime * (uint64_t)(1000000ULL/CH_CFG_ST_FREQUENCY);
 }
 
 
