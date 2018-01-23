@@ -12,6 +12,7 @@
 #include "uavcan.h"
 #include "util.h"
 #include "node.h"
+#include "bme280_node.h"
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[2048]; ///< Arena for memory allocation, used by the library
@@ -180,8 +181,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
    */
   broadcast_node_status();
   node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
-
-
+  bme280_node_broadcast_data();
 }
 
 static void canDriverEnable(uint8_t enable)
@@ -204,7 +204,7 @@ static int processTx(void)
     CANTxFrame txmsg;
     canDriverEnable(1);
     if(txf->id == 0x9e017e82) {
-     __asm volatile("BKPT #0\n");
+     //__asm volatile("BKPT #0\n");
     }
     chThdSleepMicroseconds(20);
     txmsg.DLC = txf->data_len;
@@ -277,7 +277,13 @@ static THD_FUNCTION(CanThread, arg)
       processTx();
       if((CAND1.can->TSR & CAN_TSR_TME) == CAN_TSR_TME)
       {
-        canDriverEnable(0);
+        /*
+         * Leave transceiver enabled to be able to send ACK packets.
+         * The transceiver might be disabled as soon as we have some always-on nodes
+         * on the bus.
+         * Anyway, this saves approx. 10 mA.
+         */
+        //canDriverEnable(0);
       }
     }
     if(evts & (1 << CAN_EVT_ERR))
@@ -311,10 +317,9 @@ void node_init(void)
     CAN_BTR_TS1(12) | CAN_BTR_BRP(23)
   };
 
-  canDriverEnable(0);
+  canDriverEnable(1);
 
   canStart(&CAND1, &cancfg);
-
 
   chEvtObjectInit(&txrequest_event);
 

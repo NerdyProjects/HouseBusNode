@@ -12,19 +12,13 @@
 #include <hal.h>
 #include "chprintf.h"
 
-#ifdef NDEBUG
+#if 1
 #define DEBUG(...)
+#define ERROR(...)
 #else
 #define DEBUG(...) chprintf((BaseSequentialStream *) &STDOUT_SD, __VA_ARGS__)
-#endif
 #define ERROR(...) chprintf((BaseSequentialStream *) &STDOUT_SD, __VA_ARGS__)
-
-static inline uint64_t ST2US_64(systime_t st)
-{
-  return ((((uint64_t)st * 1000000ULL)
-        + (uint64_t) CH_CFG_ST_FREQUENCY - 1ULL)
-        / (uint64_t) CH_CFG_ST_FREQUENCY);
-}
+#endif
 
 static inline uint64_t getMonotonicTimestampUSec(void)
 {

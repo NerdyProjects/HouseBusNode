@@ -49,13 +49,12 @@ int main(void)
    * Activates the serial driver 2 using the driver default configuration.
    */
   sdStart(&SD1, NULL);
+  i2cStart(&I2CD1, &i2cconfig);
+  bme280_node_init();
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
 
   node_init();
 
-  i2cStart(&I2CD1, &i2cconfig);
-
-  bme280_node_init();
 
   /*
    * Normal main() thread activity, in this demo it does nothing except

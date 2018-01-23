@@ -9,6 +9,7 @@
 #define BME280_NODE_H_
 
 void bme280_node_init(void);
+void bme280_node_broadcast_data(void);
 
 
 #endif /* BME280_NODE_H_ */
