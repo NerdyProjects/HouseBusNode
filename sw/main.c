@@ -31,6 +31,10 @@ static const I2CConfig i2cconfig = {
 
 #endif
 
+static const WDGConfig wdgconfig = {
+    7, 164, 0x0FFF
+};
+
 /*
  * Application entry point.
  */
@@ -46,20 +50,23 @@ int main(void)
    */
   halInit();
   chSysInit();
+  wdgStart(&WDGD1, &wdgconfig);
 
 
   /*
    * Activates the serial driver 2 using the driver default configuration.
    */
   sdStart(&SD1, NULL);
+  wdgReset(&WDGD1);
 #ifndef BOOTLOADER
   i2cStart(&I2CD1, &i2cconfig);
+  wdgReset(&WDGD1);
   bme280_node_init();
+  wdgReset(&WDGD1);
 #endif
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
-
+  wdgReset(&WDGD1);
   node_init();
-
 
   /*
    * Normal main() thread activity, in this demo it does nothing except

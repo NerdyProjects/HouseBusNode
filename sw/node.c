@@ -21,17 +21,22 @@ static uint8_t canard_memory_pool_placeholder[1024]; ///< Arena for memory alloc
 /* signalled when other threads schedule a TX request */
 event_source_t txrequest_event;
 
+uint8_t NodeRestartRequest = 0;
+
 /*
  * Node status variables
  */
-static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
-static uint8_t node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
 
 static void makeNodeStatusMessage(
     uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE])
 {
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   int uptime_sec = ST2S(chVTGetSystemTime());
+  uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
+  uint8_t node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
+#if BOOTLOADER
+  node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
+#endif
 
   /*
    * Here we're using the helper for demonstrational purposes; in this simple case it could be preferred to
@@ -47,6 +52,64 @@ static void readUniqueID(uint8_t* out_uid)
   memcpy(out_uid, (void *) UID_BASE, UNIQUE_ID_LENGTH_BYTES);
 }
 
+static void onGetNodeInfo(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+  uint8_t buffer[UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE];
+  memset(buffer, 0, UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE);
+
+  // NodeStatus
+  makeNodeStatusMessage(buffer);
+
+  // SoftwareVersion
+  buffer[7] = APP_VERSION_MAJOR;
+  buffer[8] = APP_VERSION_MINOR;
+  buffer[9] = 1;                    // Optional field flags, VCS commit is set
+  uint32_t u32 = VCS_COMMIT;
+  canardEncodeScalar(buffer, 80, 32, &u32);
+  // Image CRC skipped
+
+  // HardwareVersion
+  // Major skipped
+  // Minor skipped
+  readUniqueID(&buffer[24]);
+  // Certificate of authenticity skipped
+
+  // Name
+  const size_t name_len = strlen(APP_NODE_NAME);
+  memcpy(&buffer[41], APP_NODE_NAME, name_len);
+
+  const size_t total_size = 41 + name_len;
+
+  /*
+   * Transmitting; in this case we don't have to release the payload because it's empty anyway.
+   */
+  const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
+  UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE,
+  UAVCAN_GET_NODE_INFO_DATA_TYPE_ID, &transfer->transfer_id,
+      transfer->priority, CanardResponse, &buffer[0], (uint16_t) total_size);
+  if (resp_res <= 0)
+  {
+    ERROR("Could not respond to GetNodeInfo; error %d\n", resp_res);
+  }
+  node_tx_request();
+}
+
+static const uint8_t restartNodeMagicNumber[UAVCAN_RESTART_NODE_REQUEST_MAX_SIZE] = {0xAC, 0xCE, 0x55, 0x1B, 0x1E};
+
+static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+  uint8_t response = 0;
+  if(memcmp(transfer->payload_head, restartNodeMagicNumber, UAVCAN_RESTART_NODE_REQUEST_MAX_SIZE) == 0)
+  {
+    response = 1;
+    NodeRestartRequest = 1;
+  }
+  const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
+      UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE,
+      UAVCAN_RESTART_NODE_DATA_TYPE_ID, &transfer->transfer_id,
+      transfer->priority, CanardResponse, &response, 1);
+}
+
 /**
  * This callback is invoked by the library when a new message or request or response is received.
  */
@@ -55,44 +118,12 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   if ((transfer->transfer_type == CanardTransferTypeRequest)
       && (transfer->data_type_id == UAVCAN_GET_NODE_INFO_DATA_TYPE_ID))
   {
-    uint8_t buffer[UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE];
-    memset(buffer, 0, UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE);
-
-    // NodeStatus
-    makeNodeStatusMessage(buffer);
-
-    // SoftwareVersion
-    buffer[7] = APP_VERSION_MAJOR;
-    buffer[8] = APP_VERSION_MINOR;
-    buffer[9] = 1;                    // Optional field flags, VCS commit is set
-    uint32_t u32 = VCS_COMMIT;
-    canardEncodeScalar(buffer, 80, 32, &u32);
-    // Image CRC skipped
-
-    // HardwareVersion
-    // Major skipped
-    // Minor skipped
-    readUniqueID(&buffer[24]);
-    // Certificate of authenticity skipped
-
-    // Name
-    const size_t name_len = strlen(APP_NODE_NAME);
-    memcpy(&buffer[41], APP_NODE_NAME, name_len);
-
-    const size_t total_size = 41 + name_len;
-
-    /*
-     * Transmitting; in this case we don't have to release the payload because it's empty anyway.
-     */
-    const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
-    UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE,
-    UAVCAN_GET_NODE_INFO_DATA_TYPE_ID, &transfer->transfer_id,
-        transfer->priority, CanardResponse, &buffer[0], (uint16_t) total_size);
-    if (resp_res <= 0)
-    {
-      ERROR("Could not respond to GetNodeInfo; error %d\n", resp_res);
-    }
-    node_tx_request();
+    onGetNodeInfo(ins, transfer);
+  }
+  if ((transfer->transfer_type == CanardTransferTypeRequest)
+      && (transfer->data_type_id == UAVCAN_RESTART_NODE_DATA_TYPE_ID))
+  {
+    onRestartNode(ins, transfer);
   }
 }
 
@@ -118,6 +149,24 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
         && (data_type_id == UAVCAN_GET_NODE_INFO_DATA_TYPE_ID))
     {
       *out_data_type_signature = UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE;
+      return true;
+    }
+    if ((transfer_type == CanardTransferTypeRequest)
+            && (data_type_id == UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID))
+    {
+      *out_data_type_signature = UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE;
+      return true;
+    }
+    if ((transfer_type == CanardTransferTypeRequest)
+                && (data_type_id == UAVCAN_RESTART_NODE_DATA_TYPE_ID))
+    {
+      *out_data_type_signature = UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE;
+      return true;
+    }
+    if ((transfer_type == CanardTransferTypeRequest)
+                    && (data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
+    {
+      *out_data_type_signature = UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE;
       return true;
     }
   }
@@ -217,6 +266,10 @@ static int processTx(void)
     txmsg.RTR = 0;
     if (canTransmit(&CAND1, CAN_ANY_MAILBOX, &txmsg, TIME_IMMEDIATE) == MSG_OK) {
       canardPopTxQueue(&canard);
+      if(!NodeRestartRequest)
+      {
+        wdgReset(&WDGD1);
+      }
     }
     else                    // Timeout - just exit and try again later
     {
@@ -321,7 +374,7 @@ void node_init(void)
   };
 
   canDriverEnable(1);
-
+  wdgReset(&WDGD1);
   canStart(&CAND1, &cancfg);
 
   chEvtObjectInit(&txrequest_event);
@@ -330,9 +383,11 @@ void node_init(void)
    * Initializing the Libcanard instance.
    */
   memset(canard_memory_pool_placeholder, 0xF2F3F5F4, sizeof(canard_memory_pool_placeholder));
+  wdgReset(&WDGD1);
   canardInit(&canard, canard_memory_pool, sizeof(canard_memory_pool),
       onTransferReceived, shouldAcceptTransfer, NULL);
   canardSetLocalNodeID(&canard, 2);
+  wdgReset(&WDGD1);
   chThdCreateStatic(waCanThread, sizeof(waCanThread), HIGHPRIO, CanThread,
       NULL);
 }
