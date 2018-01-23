@@ -116,6 +116,7 @@ CSRC = $(STARTUPSRC) \
        main.c \
        bme280_node.c \
        drivers/bme280.c \
+       drivers/flash.c \
        libcanard/canard.c \
        exception.c
 
