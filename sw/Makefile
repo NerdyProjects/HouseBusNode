@@ -206,7 +206,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\"
+UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\" -DBOOTLOADER
 
 # Define ASM defines here
 UADEFS =

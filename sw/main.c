@@ -20,6 +20,7 @@
 #include "node.h"
 #include "bme280_node.h"
 
+#ifndef BOOTLOADER
 static const I2CConfig i2cconfig = {
   STM32_TIMINGR_PRESC(0U) |
   STM32_TIMINGR_SCLDEL(3U) | STM32_TIMINGR_SDADEL(1U) |
@@ -27,6 +28,8 @@ static const I2CConfig i2cconfig = {
   0,
   0
 };
+
+#endif
 
 /*
  * Application entry point.
@@ -49,8 +52,10 @@ int main(void)
    * Activates the serial driver 2 using the driver default configuration.
    */
   sdStart(&SD1, NULL);
+#ifndef BOOTLOADER
   i2cStart(&I2CD1, &i2cconfig);
   bme280_node_init();
+#endif
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
 
   node_init();

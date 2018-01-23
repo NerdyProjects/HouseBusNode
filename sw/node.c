@@ -180,8 +180,11 @@ static void process1HzTasks(uint64_t timestamp_usec)
    * Transmitting the node status message periodically.
    */
   broadcast_node_status();
-  node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
+#ifdef BOOTLOADER
+
+#else
   bme280_node_broadcast_data();
+#endif
 }
 
 static void canDriverEnable(uint8_t enable)

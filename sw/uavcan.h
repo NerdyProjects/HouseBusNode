@@ -20,15 +20,17 @@
 #define UAVCAN_NODE_STATUS_DATA_TYPE_ID                             341
 #define UAVCAN_NODE_STATUS_DATA_TYPE_SIGNATURE                      0x0f0868d0c1a7c6f1
 
-#define UAVCAN_NODE_HEALTH_OK                                       0
-#define UAVCAN_NODE_HEALTH_WARNING                                  1
-#define UAVCAN_NODE_HEALTH_ERROR                                    2
-#define UAVCAN_NODE_HEALTH_CRITICAL                                 3
+enum uavcan_node_health {UAVCAN_NODE_HEALTH_OK,
+  UAVCAN_NODE_HEALTH_WARNING,
+  UAVCAN_NODE_HEALTH_ERROR,
+  UAVCAN_NODE_HEALTH_CRITICAL
+};
 
-#define UAVCAN_NODE_MODE_OPERATIONAL                                0
-#define UAVCAN_NODE_MODE_INITIALIZATION                             1
-#define UAVCAN_NODE_MODE_MAINTENANCE                                2
-#define UAVCAN_NODE_MODE_SOFTWAREUPDATE                             3
+enum uavcan_node_mode {UAVCAN_NODE_MODE_OPERATIONAL,
+  UAVCAN_NODE_MODE_INITIALIZATION,
+  UAVCAN_NODE_MODE_MAINTENANCE,
+  UAVCAN_NODE_MODE_SOFTWAREUPDATE
+};
 
 #define UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE                      ((3015 + 7) / 8)
 #define UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE                    0xee468a8121c46a9e
