@@ -10,7 +10,6 @@
 #include "drivers/bme280.h"
 #include "node.h"
 #include "uavcan.h"
-#include "canard.h"
 #include "util.h"
 #include <string.h>
 
@@ -48,7 +47,7 @@ static THD_FUNCTION(BME280Thread, arg)
 {
   struct bme280_data data;
   uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
-  uint8_t transfer_id;
+  uint8_t transfer_id = 0;
   (void) arg;
   chRegSetThreadName("BME280");
   while(1) {
@@ -67,10 +66,11 @@ static THD_FUNCTION(BME280Thread, arg)
           HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE,
           HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID, &transfer_id,
           CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-      if (bc_res <= 0)
-      {
-        ERROR("Could not broadcast node status; error %d\n", bc_res);
-      }
+    if (bc_res <= 0)
+    {
+      ERROR("Could not broadcast node status; error %d\n", bc_res);
+    }
+    node_tx_request();
   }
 }
 

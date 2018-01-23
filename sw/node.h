@@ -11,7 +11,7 @@
 #include "canard.h"
 
 void node_init(void);
-
+void node_tx_request(void);
 extern CanardInstance canard;
 
 #endif /* NODE_H_ */

@@ -11,14 +11,14 @@
 #include <string.h>
 #include "uavcan.h"
 #include "util.h"
+#include "node.h"
 
 CanardInstance canard;                       ///< The library instance
-static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
+static uint8_t canard_memory_pool[2048]; ///< Arena for memory allocation, used by the library
+static uint8_t canard_memory_pool_placeholder[1024]; ///< Arena for memory allocation, used by the library
 
-/* flag to avoid race condition before a TX mailbox is marked in use by the hardware after we know we will use it.
- * Should be set and reset shortly before/after enqueueing a tx request.
- */
-static volatile uint8_t can_driver_in_use = 0;
+/* signalled when other threads schedule a TX request */
+event_source_t txrequest_event;
 
 /*
  * Node status variables
@@ -91,6 +91,7 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
     {
       ERROR("Could not respond to GetNodeInfo; error %d\n", resp_res);
     }
+    node_tx_request();
   }
 }
 
@@ -137,6 +138,7 @@ static void broadcast_node_status(void) {
   {
     ERROR("Could not broadcast node status; error %d\n", bc_res);
   }
+  node_tx_request();
 }
 
 /**
@@ -190,53 +192,47 @@ static void canDriverEnable(uint8_t enable)
     palSetPad(GPIOC, GPIOC_CAN_SUSPEND);
 }
 
-/* check if the can driver is in use and disable accordingly.
- * This method should be callable from ISR context.
- */
-static void checkDisableCanDriver(void) {
-//  uint32_t tsr = BXCAN->TSR;
-//  if(tsr & (CANARD_STM32_CAN_TSR_TME0 | CANARD_STM32_CAN_TSR_TME1 | CANARD_STM32_CAN_TSR_TME2) == 0)
-  {
-    /* All tx mailboxes empty -> we might disable the can transceiver now */
-    if(can_driver_in_use == 0) {
-      /* also there is no pending TX request, so we can actually disable it. */
-      canDriverEnable(0);
-    }
-  }
-}
-
 /**
- * Transmits all frames from the TX queue, receives up to one frame.
+ * Transmits all frames from the TX queue.
+ * Returns 1 if there is more pending TX to be done, 0 otherwise.
  */
-int processTxRx(void)
+static int processTx(void)
 {
-  // Transmitting
   for (const CanardCANFrame* txf = NULL;
       (txf = canardPeekTxQueue(&canard)) != NULL;)
   {
     CANTxFrame txmsg;
+    canDriverEnable(1);
+    if(txf->id == 0x9e017e82) {
+     __asm volatile("BKPT #0\n");
+    }
+    chThdSleepMicroseconds(20);
     txmsg.DLC = txf->data_len;
     memcpy(txmsg.data8, txf->data, 8);
     txmsg.EID = txf->id & CANARD_CAN_EXT_ID_MASK;
     txmsg.IDE = 1;
-    txmsg.RTR = (txf->id & CANARD_CAN_FRAME_RTR) >> 30 ;
+    txmsg.RTR = 0;
     if (canTransmit(&CAND1, CAN_ANY_MAILBOX, &txmsg, TIME_IMMEDIATE) == MSG_OK) {
       canardPopTxQueue(&canard);
     }
     else                    // Timeout - just exit and try again later
     {
-      break;
+      return 1;
     }
   }
+  return 0;
+}
 
+/* receives all frames from the RX queue */
+static void processRx(void)
+{
   // Receiving
   CanardCANFrame rx_frame;
   CANRxFrame rxmsg;
-  const uint64_t timestamp = getMonotonicTimestampUSec();
-
-  const int rx_res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX,&rxmsg, MS2ST(10));
-  if (rx_res == MSG_OK)        // Success - process the frame
+  int rx_res;
+  while((rx_res = canReceiveTimeout(&CAND1, CAN_ANY_MAILBOX, &rxmsg, TIME_IMMEDIATE)) == MSG_OK)
   {
+    const uint64_t timestamp = getMonotonicTimestampUSec();
     memcpy(rx_frame.data, rxmsg.data8, 8);
     rx_frame.data_len = rxmsg.DLC;
     if(rxmsg.IDE) {
@@ -244,52 +240,91 @@ int processTxRx(void)
     } else {
       rx_frame.id = rxmsg.SID;
     }
-    if(rxmsg.RTR) {
-      rx_frame.id = CANARD_CAN_FRAME_RTR;
-    }
-
     canardHandleRxFrame(&canard, &rx_frame, timestamp);
   }
-  return 0;
 }
 
+#define CAN_EVT_RXC 0
+#define CAN_EVT_TXC 1
+#define CAN_EVT_TXR 2
+#define CAN_EVT_ERR 3
 static THD_WORKING_AREA(waCanThread, 1024);
 static THD_FUNCTION(CanThread, arg)
 {
   (void) arg;
   chRegSetThreadName("Can");
   systime_t lastInvocation = 0;
+  event_listener_t rxc, txc, txr, err;
+  chEvtRegister(&CAND1.rxfull_event, &rxc, CAN_EVT_RXC);
+  chEvtRegister(&CAND1.txempty_event, &txc, CAN_EVT_TXC);
+  chEvtRegister(&CAND1.error_event, &err, CAN_EVT_ERR);
+  chEvtRegister(&txrequest_event, &txr, CAN_EVT_TXR);
   while (true)
   {
     if (chVTTimeElapsedSinceX(lastInvocation) > S2ST(1))
     {
       systime_t currentTime = chVTGetSystemTime();
-      process1HzTasks(ST2US_64(currentTime)); /* Copy of LL_ST2US function to preserve 64 bit width */
+      process1HzTasks(getMonotonicTimestampUSec());
       lastInvocation = currentTime; /* Intentionally exclude processing time */
     }
-    processTxRx();
+    eventmask_t evts = chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(100));
+    if(evts & (1 << CAN_EVT_RXC))
+    {
+      processRx();
+    }
+    if((evts & (1 << CAN_EVT_TXC)) || (evts & (1 << CAN_EVT_TXR)))
+    {
+      processTx();
+      if((CAND1.can->TSR & CAN_TSR_TME) == CAN_TSR_TME)
+      {
+        canDriverEnable(0);
+      }
+    }
+    if(evts & (1 << CAN_EVT_ERR))
+    {
+      int errors = chEvtGetAndClearFlags(&err);
+      if(errors & CAN_OVERFLOW_ERROR)
+      { /* CAN RX overflow */
+        ERROR("CAN RX ovf\n");
+      } else if(errors & 0xFFFF0000UL)
+      { /* CAN HW error, see CAN_ESR description, in upper 16 bits of errors*/
+        ERROR("CAN ERR %x\n", errors);
+      }
+    }
   }
 }
 
-int node_init(void)
+/* Signals a TX request for immediate transmission wakeup.
+ * This method can optionally be called after scheduling a transmission,
+ * if it is not called, the transmissions will only be handled periodically. */
+void node_tx_request(void)
+{
+  chEvtBroadcast(&txrequest_event);
+}
+
+void node_init(void)
 {
   /* values for 87.5% samplepoint at 48 MHz and 125000bps */
   static const CANConfig cancfg = {
-    CAN_MCR_ABOM | CAN_MCR_AWUM,
+    CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
     CAN_BTR_SJW(0) | CAN_BTR_TS2(1) |
     CAN_BTR_TS1(12) | CAN_BTR_BRP(23)
   };
 
-  canDriverEnable(1);
+  canDriverEnable(0);
+
   canStart(&CAND1, &cancfg);
+
+
+  chEvtObjectInit(&txrequest_event);
 
   /*
    * Initializing the Libcanard instance.
    */
+  memset(canard_memory_pool_placeholder, 0xF2F3F5F4, sizeof(canard_memory_pool_placeholder));
   canardInit(&canard, canard_memory_pool, sizeof(canard_memory_pool),
       onTransferReceived, shouldAcceptTransfer, NULL);
   canardSetLocalNodeID(&canard, 2);
-  chThdCreateStatic(waCanThread, sizeof(waCanThread), NORMALPRIO, CanThread,
+  chThdCreateStatic(waCanThread, sizeof(waCanThread), HIGHPRIO, CanThread,
       NULL);
-  return 0;
 }

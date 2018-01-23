@@ -44,6 +44,7 @@ int main(void)
   halInit();
   chSysInit();
 
+
   /*
    * Activates the serial driver 2 using the driver default configuration.
    */
@@ -66,15 +67,3 @@ int main(void)
   }
 }
 
-void usleep(int microseconds)
-{
-  chThdSleepMicroseconds(microseconds);
-}
-
-int util_assert(int x) {
-  if(!x) {
-    while(1)
-      ;
-  }
-  return x;
-}
