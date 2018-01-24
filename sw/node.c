@@ -13,6 +13,7 @@
 #include "util.h"
 #include "node.h"
 #include "bme280_node.h"
+#include "config.h"
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[2048]; ///< Arena for memory allocation, used by the library
@@ -34,7 +35,7 @@ static void makeNodeStatusMessage(
   int uptime_sec = ST2S(chVTGetSystemTime());
   uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
   uint8_t node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
-#if BOOTLOADER
+#ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
 #endif
 
@@ -75,8 +76,8 @@ static void onGetNodeInfo(CanardInstance* ins, CanardRxTransfer* transfer)
   // Certificate of authenticity skipped
 
   // Name
-  const size_t name_len = strlen(APP_NODE_NAME);
-  memcpy(&buffer[41], APP_NODE_NAME, name_len);
+  const size_t name_len = strlen(nodeconfig.node_name);
+  memcpy(&buffer[41], nodeconfig.node_name, name_len);
 
   const size_t total_size = 41 + name_len;
 
@@ -102,12 +103,21 @@ static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
   if(memcmp(transfer->payload_head, restartNodeMagicNumber, UAVCAN_RESTART_NODE_REQUEST_MAX_SIZE) == 0)
   {
     response = 1;
+    /* Asynchronous restart so we can send response package first.
+     * Uses watchdog timeout.
+     */
     NodeRestartRequest = 1;
   }
   const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
       UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE,
       UAVCAN_RESTART_NODE_DATA_TYPE_ID, &transfer->transfer_id,
       transfer->priority, CanardResponse, &response, 1);
+}
+
+static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+  uint8_t response = 0;
+  uint8_t source_id = transfer->payload_head[0];
 }
 
 /**
@@ -124,6 +134,11 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
       && (transfer->data_type_id == UAVCAN_RESTART_NODE_DATA_TYPE_ID))
   {
     onRestartNode(ins, transfer);
+  }
+  if ((transfer->transfer_type == CanardTransferTypeRequest)
+      && (transfer->data_type_id == UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID))
+  {
+    onBeginFirmwareUpdate(ins, transfer);
   }
 }
 

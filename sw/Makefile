@@ -83,7 +83,14 @@ endif
 #
 
 # Define project name here
-PROJECT = ch
+ifeq ($(BOOTLOADER),1)
+  PROJECT = bootloader
+  BUILDDIR=build/bootloader
+else
+  PROJECT = application
+  BUILDDIR=build/application
+endif
+
 
 # Imported source files and paths
 CHIBIOS = ChibiOS
@@ -98,7 +105,12 @@ include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
 
 # Define linker script file here
-LDSCRIPT= $(STARTUPLD)/STM32F072xB.ld
+ifeq ($(BOOTLOADER),1)
+  LDSCRIPT= STM32F072xB_app.ld
+else
+  LDSCRIPT= STM32F072xB_bl.ld
+endif
+	
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -112,13 +124,18 @@ CSRC = $(STARTUPSRC) \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
        $(CHIBIOS)/os/various/syscalls.c \
        node.c \
+       config.c \
+       bootloader_interface.c \
        board/board.c \
        main.c \
-       bme280_node.c \
-       drivers/bme280.c \
        drivers/flash.c \
        libcanard/canard.c \
        exception.c
+       
+ifneq ($(BOOTLOADER),1)
+CSRC += bme280_node.c \
+        drivers/bme280.c
+endif
 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -206,7 +223,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD) -DAPP_NODE_NAME=\"Basenode\" -DBOOTLOADER
+UDEFS = -DSTDOUT_SD=SD1 -DAPP_VERSION_MAJOR=0 -DAPP_VERSION_MINOR=1 -DVCS_COMMIT=0x$(shell git rev-parse --short HEAD)
 
 # Define ASM defines here
 UADEFS =
@@ -219,6 +236,11 @@ ULIBDIR =
 
 # List all user libraries here
 ULIBS =
+
+
+ifeq ($(BOOTLOADER),1)
+	UDEFS += -DBOOTLOADER
+endif
 
 #
 # End of user defines
