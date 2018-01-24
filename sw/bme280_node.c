@@ -5,13 +5,15 @@
  *      Author: matthias
  */
 
+#include <string.h>
 #include "ch.h"
 #include "hal.h"
 #include "drivers/bme280.h"
 #include "node.h"
 #include "uavcan.h"
 #include "util.h"
-#include <string.h>
+#include "i2c.h"
+
 
 #define BME280_TIMEOUT MS2ST(50)
 
@@ -23,7 +25,19 @@ void delay_ms(uint32_t period) {
 }
 
 int8_t i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
-  return i2cMasterTransmitTimeout(&I2CD1, dev_id, &reg_addr, 1, data, len, BME280_TIMEOUT);
+  msg_t res = i2cMasterTransmitTimeout(&I2CD1, dev_id, &reg_addr, 1, data, len, BME280_TIMEOUT);
+  if(res == MSG_TIMEOUT)
+  {
+    /* unlock driver */
+    i2c_init();
+  }
+  if(res == MSG_OK)
+  {
+    return BME280_OK;
+  } else
+  {
+    return BME280_E_COMM_FAIL;
+  }
 }
 
 int8_t i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
@@ -33,13 +47,26 @@ int8_t i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) 
    */
   uint8_t temp[20];
   temp[0] = reg_addr;
+  msg_t res;
   if(len > 19) {
     return BME280_E_INVALID_LEN;
   }
   for(uint8_t i = 0; i < len; ++i) {
     temp[i+1] = data[i];
   }
-  return i2cMasterTransmitTimeout(&I2CD1, dev_id, temp, len+1, NULL, 0, BME280_TIMEOUT);
+  res = i2cMasterTransmitTimeout(&I2CD1, dev_id, temp, len+1, NULL, 0, BME280_TIMEOUT);
+  if(res == MSG_TIMEOUT)
+  {
+    /* unlock driver */
+    i2c_init();
+  }
+  if(res == MSG_OK)
+  {
+    return BME280_OK;
+  } else
+  {
+    return BME280_E_COMM_FAIL;
+  }
 }
 
 void bme280_node_broadcast_data(void)
