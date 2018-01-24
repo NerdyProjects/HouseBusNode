@@ -1,9 +1,6 @@
 #include "hal.h"
+#include "flash.h"
 
-#define FLASH_TOT_SIZE 0x10000UL  // 64k.
-#define FLASH_PAGE_SIZE 2048UL    // 2k
-#define FLASH_PAGE_MASK 0x7FFUL
-#define BOOTLOADER_SIZE 16384UL   // 16k
 
 #define flash_wait_nb() while ( FLASH->SR & FLASH_SR_BSY)
 

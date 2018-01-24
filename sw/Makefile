@@ -132,7 +132,9 @@ CSRC = $(STARTUPSRC) \
        libcanard/canard.c \
        exception.c
        
-ifneq ($(BOOTLOADER),1)
+ifeq ($(BOOTLOADER),1)
+CSRC += firmware_update.c
+else
 CSRC += bme280_node.c \
         drivers/bme280.c
 endif

@@ -14,15 +14,20 @@
 #include "node.h"
 #include "bme280_node.h"
 #include "config.h"
+#include "bootloader_interface.h"
+#include "firmware_update.h"
 
 CanardInstance canard;                       ///< The library instance
-static uint8_t canard_memory_pool[2048]; ///< Arena for memory allocation, used by the library
-static uint8_t canard_memory_pool_placeholder[1024]; ///< Arena for memory allocation, used by the library
+static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
 
 /* signalled when other threads schedule a TX request */
 event_source_t txrequest_event;
 
 uint8_t NodeRestartRequest = 0;
+
+#ifdef BOOTLOADER
+uint8_t FirmwareUpdate = 0;
+#endif
 
 /*
  * Node status variables
@@ -37,7 +42,15 @@ static void makeNodeStatusMessage(
   uint8_t node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
 #ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
+  if(FirmwareUpdate)
+    {
+      node_mode = UAVCAN_NODE_MODE_SOFTWAREUPDATE;
+    }
 #endif
+  if(NodeRestartRequest)
+  {
+    node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
+  }
 
   /*
    * Here we're using the helper for demonstrational purposes; in this simple case it could be preferred to
@@ -117,7 +130,38 @@ static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
 static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfer)
 {
   uint8_t response = 0;
+  uint8_t filename_length = transfer->payload_len - 1;  /* Tail array optimisation for this data type */
   uint8_t source_id = transfer->payload_head[0];
+
+  if(NodeRestartRequest)
+  {
+    response = 1;
+  }
+#ifdef BOOTLOADER
+  if(FirmwareUpdate)
+  {
+    response = 2;
+  }
+#endif
+  if(response == 0)
+  {
+    bootloader_interface.request_from_node_id = source_id;
+    bootloader_interface.request_file_name_length = filename_length;
+    for(uint8_t i = 0; i < filename_length; ++i)
+    {
+      canardDecodeScalar(transfer, 8+8*i, 8, 0, &bootloader_interface.request_file_name[i]);
+    }
+#ifdef BOOTLOADER
+    FirmwareUpdate = 1;
+#else
+    NodeRestartRequest = 1;
+#endif
+  }
+  canardReleaseRxTransferPayload(ins, transfer);
+  const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
+            UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE,
+            UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID, &transfer->transfer_id,
+            transfer->priority, CanardResponse, &response, 1);
 }
 
 /**
@@ -140,6 +184,13 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     onBeginFirmwareUpdate(ins, transfer);
   }
+#ifdef BOOTLOADER
+  if ((transfer->transfer_type == CanardTransferTypeRequest)
+      && (transfer->data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
+  {
+    onFileRead(ins, transfer);
+  }
+#endif
 }
 
 /**
@@ -178,12 +229,14 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
       *out_data_type_signature = UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE;
       return true;
     }
+#ifdef BOOTLOADER
     if ((transfer_type == CanardTransferTypeRequest)
                     && (data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
     {
       *out_data_type_signature = UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE;
       return true;
     }
+#endif
   }
 
   return false;
@@ -244,9 +297,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
    * Transmitting the node status message periodically.
    */
   broadcast_node_status();
-#ifdef BOOTLOADER
-
-#else
+#ifndef BOOTLOADER
   bme280_node_broadcast_data();
 #endif
 }
@@ -332,6 +383,12 @@ static THD_FUNCTION(CanThread, arg)
   chEvtRegister(&txrequest_event, &txr, CAN_EVT_TXR);
   while (true)
   {
+#ifdef BOOTLOADER
+    if(FirmwareUpdate)
+    {
+      processFirmwareUpdate();
+    }
+#endif
     if (chVTTimeElapsedSinceX(lastInvocation) > S2ST(1))
     {
       systime_t currentTime = chVTGetSystemTime();
@@ -397,12 +454,17 @@ void node_init(void)
   /*
    * Initializing the Libcanard instance.
    */
-  memset(canard_memory_pool_placeholder, 0xF2F3F5F4, sizeof(canard_memory_pool_placeholder));
   wdgReset(&WDGD1);
   canardInit(&canard, canard_memory_pool, sizeof(canard_memory_pool),
       onTransferReceived, shouldAcceptTransfer, NULL);
   canardSetLocalNodeID(&canard, 2);
   wdgReset(&WDGD1);
+#ifdef BOOTLOADER
+  if(bootloader_interface.request_from_node_id && bootloader_interface.request_file_name_length)
+  {
+    FirmwareUpdate = 1;
+  }
+#endif
   chThdCreateStatic(waCanThread, sizeof(waCanThread), HIGHPRIO, CanThread,
       NULL);
 }
