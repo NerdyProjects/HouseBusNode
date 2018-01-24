@@ -1,0 +1,3 @@
+int18 temperature
+uint17 humidity
+uint18 pressure
