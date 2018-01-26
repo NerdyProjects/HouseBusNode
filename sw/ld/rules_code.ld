@@ -73,14 +73,5 @@ SECTIONS
     .eh_frame : ONLY_IF_RO
     {
         *(.eh_frame)
-    } > VARIOUS_FLASH AT > VARIOUS_FLASH_LMA
-    
-    .configflash : ALIGN(4)
-    {
-        . = ALIGN(4);
-        __configflash_base__ = .;
-        *(.configflash)
-        . = ALIGN(4);
-        __configflash_end__ = .;
-    } > CONFIG_FLASH AT > CONFIG_FLASH_LMA       
+    } > VARIOUS_FLASH AT > VARIOUS_FLASH_LMA     
 }

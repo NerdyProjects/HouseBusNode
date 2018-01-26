@@ -19,17 +19,8 @@
 #include "chprintf.h"
 #include "node.h"
 #include "bme280_node.h"
+#include "drivers/i2c.h"
 
-#ifndef BOOTLOADER
-static const I2CConfig i2cconfig = {
-  STM32_TIMINGR_PRESC(0U) |
-  STM32_TIMINGR_SCLDEL(3U) | STM32_TIMINGR_SDADEL(1U) |
-  STM32_TIMINGR_SCLH(3U)  | STM32_TIMINGR_SCLL(9U),
-  0,
-  0
-};
-
-#endif
 
 static const WDGConfig wdgconfig = {
     7, 164, 0x0FFF
@@ -58,8 +49,9 @@ int main(void)
    */
   sdStart(&SD1, NULL);
   wdgReset(&WDGD1);
+  i2c_init();
+  eeprom_init(&I2CD1);
 #ifndef BOOTLOADER
-  i2cStart(&I2CD1, &i2cconfig);
   wdgReset(&WDGD1);
   bme280_node_init();
   wdgReset(&WDGD1);

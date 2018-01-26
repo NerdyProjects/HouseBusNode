@@ -32,28 +32,33 @@ enum uavcan_node_mode {UAVCAN_NODE_MODE_OPERATIONAL,
   UAVCAN_NODE_MODE_SOFTWAREUPDATE
 };
 
-#define UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE                      ((3015 + 7) / 8)
-#define UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE                    0xee468a8121c46a9e
 #define UAVCAN_GET_NODE_INFO_DATA_TYPE_ID                           1
+#define UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE                    0xee468a8121c46a9e
+#define UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE                      ((3015 + 7) / 8)
 
-#define HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE                     ((53+7)/8)
 #define HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID                     20000UL
 #define HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE              0x5a95451888a88279
+#define HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE                     ((53+7)/8)
 
-#define UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE            0xb7d725df72724126
 #define UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID                   40
-#define UAVCAN_BEGIN_FIRMWARE_UPDATE_RESPONSE_MAX_SIZE              (1031+7)/8)
+#define UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE            0xb7d725df72724126
+#define UAVCAN_BEGIN_FIRMWARE_UPDATE_RESPONSE_MAX_SIZE              ((1031+7)/8)
 #define UAVCAN_BEGIN_FIRMWARE_UPDATE_REQUEST_MAX_SIZE               ((1616+7)/8)
 
-#define UAVCAN_FILE_READ_RESPONSE_MAX_SIZE                          ((2073+7)/8)
-#define UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE                        0x8dcdca939f33f678
 #define UAVCAN_FILE_READ_DATA_TYPE_ID                               48
+#define UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE                        0x8dcdca939f33f678
 #define UAVCAN_FILE_READ_REQUEST_MAX_SIZE                           ((1648+7)/8)
+#define UAVCAN_FILE_READ_RESPONSE_MAX_SIZE                          ((2073+7)/8)
 
-#define UAVCAN_RESTART_NODE_RESPONSE_MAX_SIZE                       ((1+7)/8)
-#define UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE                     0x569e05394a3017f0
 #define UAVCAN_RESTART_NODE_DATA_TYPE_ID                            5
+#define UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE                     0x569e05394a3017f0
 #define UAVCAN_RESTART_NODE_REQUEST_MAX_SIZE                        ((40+7)/8)
+#define UAVCAN_RESTART_NODE_RESPONSE_MAX_SIZE                       ((1+7)/8)
+
+#define UAVCAN_PARAM_GETSET_REQUEST_MAX_SIZE                        ((1791+7)/8)
+#define UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE                       ((2967+7)/8)
+#define UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE                     0xa7b622f939d1a4d5
+#define UAVCAN_PARAM_GETSET_DATA_TYPE_ID                            11
 
 #define UNIQUE_ID_LENGTH_BYTES                                      12
 

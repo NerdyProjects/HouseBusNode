@@ -60,7 +60,7 @@
 #define GPIOB_ODSW1                 4U
 #define GPIOB_ODSW2                 5U
 #define GPIOB_I2C1_SCL              6U
-#define GPIOB_I2C1_SCK              7U
+#define GPIOB_I2C1_SDA              7U
 #define GPIOB_CANR                  8U
 #define GPIOB_CAND                  9U
 #define GPIOB_DIN2                  10U
@@ -266,7 +266,7 @@
                                      PIN_MODE_OUTPUT(GPIOB_ODSW1) |         \
                                      PIN_MODE_OUTPUT(GPIOB_ODSW2) |         \
                                      PIN_MODE_ALTERNATE(GPIOB_I2C1_SCL) |        \
-                                     PIN_MODE_ALTERNATE(GPIOB_I2C1_SCK) |           \
+                                     PIN_MODE_ALTERNATE(GPIOB_I2C1_SDA) |           \
                                      PIN_MODE_ALTERNATE(GPIOB_CANR) |        \
                                      PIN_MODE_ALTERNATE(GPIOB_CAND) |        \
                                      PIN_MODE_INPUT(GPIOB_DIN2) |         \
@@ -282,7 +282,7 @@
                                      PIN_OTYPE_PUSHPULL(GPIOB_ODSW1) |         \
                                      PIN_OTYPE_PUSHPULL(GPIOB_ODSW2) |         \
                                      PIN_OTYPE_OPENDRAIN(GPIOB_I2C1_SCL) |        \
-                                     PIN_OTYPE_OPENDRAIN(GPIOB_I2C1_SCK) |           \
+                                     PIN_OTYPE_OPENDRAIN(GPIOB_I2C1_SDA) |           \
                                      PIN_OTYPE_PUSHPULL(GPIOB_CANR) |        \
                                      PIN_OTYPE_PUSHPULL(GPIOB_CAND) |        \
                                      PIN_OTYPE_PUSHPULL(GPIOB_DIN2) |         \
@@ -298,7 +298,7 @@
                                      PIN_OSPEED_VERYLOW(GPIOB_ODSW1) |         \
                                      PIN_OSPEED_VERYLOW(GPIOB_ODSW2) |         \
                                      PIN_OSPEED_VERYLOW(GPIOB_I2C1_SCL) |        \
-                                     PIN_OSPEED_VERYLOW(GPIOB_I2C1_SCK) |           \
+                                     PIN_OSPEED_VERYLOW(GPIOB_I2C1_SDA) |           \
                                      PIN_OSPEED_VERYLOW(GPIOB_CANR) |        \
                                      PIN_OSPEED_VERYLOW(GPIOB_CAND) |        \
                                      PIN_OSPEED_VERYLOW(GPIOB_DIN2) |         \
@@ -314,7 +314,7 @@
                                      PIN_PUPDR_FLOATING(GPIOB_ODSW1) |         \
                                      PIN_PUPDR_FLOATING(GPIOB_ODSW2) |         \
                                      PIN_PUPDR_FLOATING(GPIOB_I2C1_SCL) |        \
-                                     PIN_PUPDR_FLOATING(GPIOB_I2C1_SCK) |           \
+                                     PIN_PUPDR_FLOATING(GPIOB_I2C1_SDA) |           \
                                      PIN_PUPDR_FLOATING(GPIOB_CANR) |        \
                                      PIN_PUPDR_FLOATING(GPIOB_CAND) |        \
                                      PIN_PUPDR_PULLUP(GPIOB_DIN2) |         \
@@ -330,7 +330,7 @@
                                      PIN_ODR_LOW(GPIOB_ODSW1) |         \
                                      PIN_ODR_LOW(GPIOB_ODSW2) |         \
                                      PIN_ODR_HIGH(GPIOB_I2C1_SCL) |        \
-                                     PIN_ODR_LOW(GPIOB_I2C1_SCK) |           \
+                                     PIN_ODR_LOW(GPIOB_I2C1_SDA) |           \
                                      PIN_ODR_LOW(GPIOB_CANR) |        \
                                      PIN_ODR_LOW(GPIOB_CAND) |        \
                                      PIN_ODR_LOW(GPIOB_DIN2) |         \
@@ -346,7 +346,7 @@
                                      PIN_AFIO_AF(GPIOB_ODSW1, 0U) |         \
                                      PIN_AFIO_AF(GPIOB_ODSW2, 0U) |         \
                                      PIN_AFIO_AF(GPIOB_I2C1_SCL, 1U) |        \
-                                     PIN_AFIO_AF(GPIOB_I2C1_SCK, 1U))
+                                     PIN_AFIO_AF(GPIOB_I2C1_SDA, 1U))
 #define VAL_GPIOB_AFRH              (PIN_AFIO_AF(GPIOB_CANR, 4U) |        \
                                      PIN_AFIO_AF(GPIOB_CAND, 4U) |        \
                                      PIN_AFIO_AF(GPIOB_DIN2, 0U) |         \

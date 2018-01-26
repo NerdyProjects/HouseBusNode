@@ -262,7 +262,7 @@
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_SEMAPHORES.
  */
-#define CH_CFG_USE_MAILBOXES                TRUE
+#define CH_CFG_USE_MAILBOXES                FALSE
 
 /**
  * @brief   Core Memory Manager APIs.

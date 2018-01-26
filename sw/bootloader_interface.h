@@ -16,5 +16,7 @@ struct bootloader_interface {
   uint8_t request_file_name_length;
 };
 
-extern struct bootloader_interface bootloader_interface;
+extern struct bootloader_interface __attribute__ ((section (".bootloader_interface"))) bootloader_interface;
+
+extern
 #endif /* BOOTLOADER_INTERFACE_H_ */

@@ -16,6 +16,7 @@
 #include "config.h"
 #include "bootloader_interface.h"
 #include "firmware_update.h"
+#include "config.h"
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
@@ -25,20 +26,26 @@ event_source_t txrequest_event;
 
 uint8_t NodeRestartRequest = 0;
 
+static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
+
 #ifdef BOOTLOADER
 uint8_t FirmwareUpdate = 0;
 #endif
 
-/*
- * Node status variables
- */
+static void payloadExtractArray(CanardRxTransfer *transfer, uint16_t offset, uint8_t len, uint8_t *dst)
+{
+  while(len)
+  {
+    canardDecodeScalar(transfer, offset*8, 8, 0, dst++);
+    len--;
+  }
+}
 
 static void makeNodeStatusMessage(
     uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE])
 {
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   int uptime_sec = ST2S(chVTGetSystemTime());
-  uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
   uint8_t node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
 #ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
@@ -89,8 +96,8 @@ static void onGetNodeInfo(CanardInstance* ins, CanardRxTransfer* transfer)
   // Certificate of authenticity skipped
 
   // Name
-  const size_t name_len = strlen(nodeconfig.node_name);
-  memcpy(&buffer[41], nodeconfig.node_name, name_len);
+  uint8_t name_len;
+  config_get(CONFIG_NODE_NAME, &buffer[41], &name_len);
 
   const size_t total_size = 41 + name_len;
 
@@ -125,6 +132,117 @@ static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
       UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE,
       UAVCAN_RESTART_NODE_DATA_TYPE_ID, &transfer->transfer_id,
       transfer->priority, CanardResponse, &response, 1);
+}
+
+static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+  uint8_t buffer[UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE];
+  uint16_t response_size;
+  memset(buffer, 0, UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE);
+
+  if(transfer->payload_len < 2) {
+    /* invalid payload */
+    return;
+  }
+
+  uint16_t config_id;
+  uint8_t unionTag;
+  uint8_t value_len;
+  int name_len;
+  canardDecodeScalar(transfer, 0, 13, 0, &config_id);
+  canardDecodeScalar(transfer, 13, 3, 0, &unionTag);
+  switch(unionTag)
+  {
+  case 0:
+    /* empty */
+    value_len = 0;
+    break;
+  case 1:
+    /* int64 */
+    value_len = 8;
+    break;
+  case 2:
+    /* float32 */
+    value_len = 4;
+    break;
+  case 3:
+    /* 8 bit boolean */
+    value_len = 1;
+    break;
+  case 4:
+    /* 4: string with length prefix */
+    value_len = transfer->payload_head[2] + 1;
+  default:
+    /* invalid payload */
+    return;
+  }
+
+  name_len = transfer->payload_len - 2 - value_len;
+  if(name_len < 0) {
+    /* invalid payload */
+    return;
+  } else if(name_len > 0)
+  {
+    uint8_t name[92];
+    payloadExtractArray(transfer, 2 + value_len, name_len, name);
+    int id = config_get_id_by_name(name, name_len);
+    if(id < 0)
+    {
+      /* merge invalid ID paths using an invalid 16 bit ID */
+      config_id = 65535;
+    } else
+    {
+      config_id = (uint16_t)id;
+    }
+  }
+
+  if(config_get_param_size(config_id) != 0)
+  {
+    /* Parameter exists - Perform get or set */
+    if(unionTag == 0)
+    {
+      /* Empty value -> GET */
+      switch(config_get_param_type(config_id))
+      {
+      case CONFIG_PARAM_STRING:
+        buffer[0] = 4;
+        config_get(config_id, &buffer[2], &buffer[1]);
+        break;
+      case CONFIG_PARAM_INT:
+        buffer[0] = 1;
+        config_get(config_id, &buffer[1], NULL);
+        break;
+      default:
+        util_assert(0);
+        break;
+      }
+    } else
+    {
+      /* Set */
+      if(unionTag == 1)
+      {
+        /* int64*/
+        int64_t value;
+        canardDecodeScalar(transfer, 16, 64, 1, &value);
+        config_set(config_id, &value, 8);
+      } else if(unionTag == 4)
+      {
+        /* string */
+        uint8_t str[128];
+        payloadExtractArray(transfer, 3, transfer->payload_head[2], str);
+        config_set(config_id, str, transfer->payload_head[2]);
+      }
+    }
+  } else
+  {
+    /* Parameter does not exist - empty response signalizes that */
+    response_size = 0;
+  }
+  canardReleaseRxTransferPayload(ins, transfer);
+  const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
+            UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE,
+            UAVCAN_PARAM_GETSET_DATA_TYPE_ID, &transfer->transfer_id,
+            transfer->priority, CanardResponse, buffer, response_size);
 }
 
 static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfer)
@@ -184,6 +302,11 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     onBeginFirmwareUpdate(ins, transfer);
   }
+  if ((transfer->transfer_type == CanardTransferTypeRequest)
+        && (transfer->data_type_id == UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID))
+  {
+    onParamGetSet(ins, transfer);
+  }
 #ifdef BOOTLOADER
   if ((transfer->transfer_type == CanardTransferTypeRequest)
       && (transfer->data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
@@ -227,6 +350,12 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
                 && (data_type_id == UAVCAN_RESTART_NODE_DATA_TYPE_ID))
     {
       *out_data_type_signature = UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE;
+      return true;
+    }
+    if ((transfer_type == CanardTransferTypeRequest)
+                && (data_type_id == UAVCAN_PARAM_GETSET_DATA_TYPE_ID))
+    {
+      *out_data_type_signature = UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE;
       return true;
     }
 #ifdef BOOTLOADER
@@ -386,7 +515,13 @@ static THD_FUNCTION(CanThread, arg)
 #ifdef BOOTLOADER
     if(FirmwareUpdate)
     {
-      processFirmwareUpdate();
+      int res;
+      res = processFirmwareUpdate(&canard);
+      if(res == FIRMWARE_UPDATE_ERR_FLASH_FAILED)
+      {
+        /* Firmware update failed - application is likely to be broken now */
+        node_health = UAVCAN_NODE_HEALTH_CRITICAL;
+      }
     }
 #endif
     if (chVTTimeElapsedSinceX(lastInvocation) > S2ST(1))

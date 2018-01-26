@@ -19,9 +19,9 @@
  */
 MEMORY
 {
-    flash0  : org = 0x08004800, len = 110k
-    flash1  : org = 0x08000000, len = 16k
-    flash2  : org = 0x08004000, len = 2k
+    flash0  : org = 0x08005000, len = 108k
+    flash1  : org = 0x08000000, len = 20k
+    flash2  : org = 0x00000000, len = 0
     flash3  : org = 0x00000000, len = 0
     flash4  : org = 0x00000000, len = 0
     flash5  : org = 0x00000000, len = 0
@@ -69,10 +69,6 @@ REGION_ALIAS("BOOTLOADER_FLASH_LMA", flash1);
 
 /* Flash region for application */
 REGION_ALIAS("APPLICATION_FLASH", flash0);
-
-/* Flash region for config storage */
-REGION_ALIAS("CONFIG_FLASH", flash2);
-REGION_ALIAS("CONFIG_FLASH_LMA", flash2);
 
 /* RAM region to be used for Main stack. This stack accommodates the processing
    of all exceptions and interrupts.*/

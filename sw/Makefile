@@ -25,7 +25,7 @@ endif
 
 # Linker extra options here.
 ifeq ($(USE_LDOPT),)
-  USE_LDOPT = 
+  USE_LDOPT =
 endif
 
 # Enable this if you want link time optimizations (LTO)
@@ -106,9 +106,9 @@ include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
 
 # Define linker script file here
 ifeq ($(BOOTLOADER),1)
-  LDSCRIPT= STM32F072xB_app.ld
+  LDSCRIPT= ld/STM32F072xB_bl.ld
 else
-  LDSCRIPT= STM32F072xB_bl.ld
+  LDSCRIPT= ld/STM32F072xB_app.ld
 endif
 	
 
@@ -125,10 +125,11 @@ CSRC = $(STARTUPSRC) \
        $(CHIBIOS)/os/various/syscalls.c \
        node.c \
        config.c \
-       bootloader_interface.c \
        board/board.c \
        main.c \
        drivers/flash.c \
+       drivers/i2c.c \
+       drivers/eeprom24c.c \
        libcanard/canard.c \
        exception.c
        
@@ -248,5 +249,5 @@ endif
 # End of user defines
 ##############################################################################
 
-RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
-include $(RULESPATH)/rules.mk
+RULESPATH = .
+include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/rules.mk
