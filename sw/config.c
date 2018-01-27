@@ -90,15 +90,20 @@ int config_get(config_param_t param, void *dst, uint8_t *valid) {
     return CONFIG_NO_SUCH_PARAMETER;
   }
   uint32_t offset = get_param_offset(param);
-  int valid_length = eeprom_read(offset, valid, 1);
-  if (valid_length < 0) {
+  int valid_length;
+  int res = eeprom_read(offset, valid_length, 1);
+  if (res < 0) {
     return CONFIG_MEMORY_ERROR;
   }
-  if(valid) {
+  if (valid) {
     *valid = valid_length;
   }
-  if(dst) {
-    eeprom_read(offset + 1, (uint8_t *)dst, valid_length);
+  if (dst) {
+    res = eeprom_read(offset + 1, (uint8_t *)dst, valid_length);
+  }
+  if (res < 0)
+  {
+    return CONFIG_MEMORY_ERROR;
   }
   return CONFIG_OK;
 }
@@ -122,6 +127,7 @@ uint32_t config_get_uint(config_param_t param) {
  */
 int config_set(config_param_t param, void *src, uint8_t size)
 {
+  int res;
   if(param >= CONFIG_PARAM_LAST)
   {
     return CONFIG_NO_SUCH_PARAMETER;
@@ -132,9 +138,15 @@ int config_set(config_param_t param, void *src, uint8_t size)
   {
     size = reserved_size;
   }
-  eeprom_write(offset, &size, 1);
-  eeprom_write(offset + 1, src, size);
-  return CONFIG_OK;
+  res = eeprom_write(offset, &size, 1);
+  res |= eeprom_write(offset + 1, src, size);
+  if(res == 0)
+  {
+    return CONFIG_OK;
+  } else
+  {
+    return CONFIG_MEMORY_ERROR;
+  }
 }
 
 int config_set_uint(config_param_t param, uint32_t v)
@@ -142,10 +154,14 @@ int config_set_uint(config_param_t param, uint32_t v)
   return config_set(param, &v, 4);
 }
 
-void config_init(void)
+int config_init(I2CDriver *i2c)
 {
   uint32_t magic = 0;
   uint32_t version = 0;
+  if(eeprom_init(i2c) < 0)
+  {
+    return -1;
+  }
   config_get(CONFIG_MAGIC, &magic, 0);
   config_get(CONFIG_VERSION, &version, 0);
   if(magic == CONFIGURATION_MAGIC)
@@ -170,5 +186,8 @@ void config_init(void)
     /* Initialize sane defaults for UAVCAN configuration */
     config_set_uint(CONFIG_NODE_ID, 127);
     config_set(CONFIG_NODE_NAME, "Unconfigured node", 17);
+    config_set_uint(CONFIG_MAGIC, CONFIGURATION_MAGIC);
+    config_set_uint(CONFIG_VERSION, CONFIGURATION_VERSION);
   }
+  return 0;
 }

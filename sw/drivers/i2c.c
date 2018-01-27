@@ -20,7 +20,23 @@ void i2c_init(void)
 {
   uint8_t sda_high_cycles = 0;
   palSetPadMode(GPIOB, GPIOB_I2C1_SCL, PAL_MODE_OUTPUT_OPENDRAIN);
-  palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_INPUT);
+  palSetPad(GPIOB, GPIOB_I2C1_SDA);
+  palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_OUTPUT_OPENDRAIN);
+  palClearPad(GPIOB, GPIOB_I2C1_SCL);
+  chThdSleep(US2ST(5));
+  while(!palReadPad(GPIOB, GPIOB_I2C1_SDA))
+  {
+    palSetPad(GPIOB, GPIOB_I2C1_SCL);
+    chThdSleep(US2ST(5));
+    palClearPad(GPIOB, GPIOB_I2C1_SCL);
+    chThdSleep(US2ST(5));
+  }
+  /* STOP condition */
+  palClearPad(GPIOB, GPIOB_I2C1_SDA);
+  palSetPad(GPIOB, GPIOB_I2C1_SCL);
+  chThdSleep(US2ST(5));
+  palSetPad(GPIOB, GPIOB_I2C1_SDA);
+  chThdSleep(US2ST(5));
   /* Send SCL cycles until SDA is high for 10 consecutive cycles */
   do {
     palSetPad(GPIOB, GPIOB_I2C1_SCL);
@@ -36,7 +52,6 @@ void i2c_init(void)
     chThdSleep(US2ST(5));
   } while(sda_high_cycles < 10);
   /* send a STOP condition afterwards */
-  palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_OUTPUT_OPENDRAIN);
   palClearPad(GPIOB, GPIOB_I2C1_SDA);
   chThdSleep(US2ST(5));
   palSetPad(GPIOB, GPIOB_I2C1_SCL);

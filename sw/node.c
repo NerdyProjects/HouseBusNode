@@ -17,6 +17,9 @@
 #include "bootloader_interface.h"
 #include "firmware_update.h"
 #include "config.h"
+#ifdef BOOTLOADER
+#include "bootloader.h"
+#endif
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
@@ -139,6 +142,10 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
   uint8_t buffer[UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE];
   uint16_t response_size;
   memset(buffer, 0, UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE);
+  #ifdef BOOTLOADER
+  bootloader_command_executed();
+  #endif
+
 
   if(transfer->payload_len < 2) {
     /* invalid payload */
@@ -256,6 +263,7 @@ static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfe
     response = 1;
   }
 #ifdef BOOTLOADER
+  bootloader_command_executed();
   if(FirmwareUpdate)
   {
     response = 2;

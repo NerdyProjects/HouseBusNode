@@ -9,6 +9,7 @@
 #define CONFIG_H_
 
 #include <stdint.h>
+#include "hal.h"
 
 #define CONF_PLAIN(x, v, t) x
 #define CONF_STRINGIFY(x, v, t) #x
@@ -60,7 +61,7 @@ uint32_t config_get_uint(config_param_t param);
 int config_set(config_param_t param, void *src, uint8_t size);
 int config_set_uint(config_param_t param, uint32_t v);
 int config_get_id_by_name(uint8_t *name, uint8_t name_len);
-void config_init(void);
+int config_init(I2CDriver *i2c);
 
 #define CONFIG_OK 0
 #define CONFIG_NO_SUCH_PARAMETER -1

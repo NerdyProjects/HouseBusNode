@@ -103,4 +103,11 @@ SECTIONS
             . = ALIGN(4);
             __application_flash_base__ = .;
         } > APPLICATION_FLASH
+        
+        .vtors_ram (NOLOAD) : ALIGN(4)
+        {
+            . = ALIGN(4);
+            __vtors_ram_base__ = .;
+            *(.vtors_ram);           
+        } > VECTORS_RAM
 }

@@ -20,7 +20,10 @@
 #include "node.h"
 #include "bme280_node.h"
 #include "drivers/i2c.h"
-
+#include "config.h"
+#ifdef BOOTLOADER
+#include "bootloader.h"
+#endif
 
 static const WDGConfig wdgconfig = {
     7, 164, 0x0FFF
@@ -41,8 +44,9 @@ int main(void)
    */
   halInit();
   chSysInit();
-  wdgStart(&WDGD1, &wdgconfig);
-
+  DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP | DBGMCU_APB1_FZ_DBG_WWDG_STOP;
+  wdgInit();
+//  wdgStart(&WDGD1, &wdgconfig);
 
   /*
    * Activates the serial driver 2 using the driver default configuration.
@@ -50,7 +54,10 @@ int main(void)
   sdStart(&SD1, NULL);
   wdgReset(&WDGD1);
   i2c_init();
-  eeprom_init(&I2CD1);
+  if(config_init(&I2CD1) < 0)
+  {
+    ERROR("configuration init failed\n");
+  }
 #ifndef BOOTLOADER
   wdgReset(&WDGD1);
   bme280_node_init();
@@ -64,6 +71,9 @@ int main(void)
    * Normal main() thread activity, in this demo it does nothing except
    * sleeping in a loop and check the button state.
    */
+#ifdef BOOTLOADER
+  bootloader_loop();
+#endif
   while (true)
   {
     chThdSleepMilliseconds(500);

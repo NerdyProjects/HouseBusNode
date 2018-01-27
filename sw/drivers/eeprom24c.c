@@ -110,7 +110,7 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
   }
 
   /* fill up partial page */
-  next_page_adr = (adr & (EEPROM_PAGE_SIZE-1)) + EEPROM_PAGE_SIZE;
+  next_page_adr = (adr & ~(EEPROM_PAGE_SIZE-1)) + EEPROM_PAGE_SIZE;
   page_space = next_page_adr - adr;
   write_size = (page_space < size) ? page_space : size;
 

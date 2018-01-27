@@ -134,7 +134,8 @@ CSRC = $(STARTUPSRC) \
        exception.c
        
 ifeq ($(BOOTLOADER),1)
-CSRC += firmware_update.c
+CSRC += firmware_update.c \
+				bootloader.c
 else
 CSRC += bme280_node.c \
         drivers/bme280.c

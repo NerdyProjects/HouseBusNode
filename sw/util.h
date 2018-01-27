@@ -12,7 +12,7 @@
 #include <hal.h>
 #include "chprintf.h"
 
-#if 1
+#if 0
 #define DEBUG(...)
 #define ERROR(...)
 #else
