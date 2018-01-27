@@ -130,6 +130,7 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
       if(result == MSG_OK && eeprom_write_ack_poll() == 0)
       {
         success = 1;
+        break;
       }
     }
     if(!success)
