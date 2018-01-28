@@ -1,6 +1,7 @@
 #include <string.h>
 #include "config.h"
 #include "drivers/eeprom24c.h"
+#include "util.h"
 
 static uint8_t config_param_size[] = { CONFIG_PARAM_SIZE_INIT };
 static const char *config_param_name[] = { CONFIG_PARAM_NAME_INIT };
@@ -15,7 +16,7 @@ uint8_t config_get_param_size(config_param_t param)
   {
     return 0;
   }
-  return config_param_size[param] + 1;
+  return config_param_size[param];
 }
 
 int config_get_param_type(config_param_t param)
@@ -90,10 +91,14 @@ int config_get(config_param_t param, void *dst, uint8_t *valid) {
     return CONFIG_NO_SUCH_PARAMETER;
   }
   uint32_t offset = get_param_offset(param);
-  int valid_length;
-  int res = eeprom_read(offset, valid_length, 1);
+  uint8_t valid_length;
+  int res = eeprom_read(offset, &valid_length, 1);
   if (res < 0) {
     return CONFIG_MEMORY_ERROR;
+  }
+  if(valid_length > config_get_param_size(param))
+  {
+    valid_length = config_get_param_size(param);
   }
   if (valid) {
     *valid = valid_length;
@@ -162,10 +167,14 @@ int config_init(I2CDriver *i2c)
   {
     return -1;
   }
+  DEBUG("read magic ");
   config_get(CONFIG_MAGIC, &magic, 0);
+  DEBUG("%x", magic);
   config_get(CONFIG_VERSION, &version, 0);
+  DEBUG(": %u\n", version);
   if(magic == CONFIGURATION_MAGIC)
   {
+    DEBUG("Configuration accepted\n");
     if(version == CONFIGURATION_VERSION)
     {
       status = CONFIG_STATUS_OK;
@@ -177,6 +186,8 @@ int config_init(I2CDriver *i2c)
   {
     status = CONFIG_STATUS_INVALID;
     /* clear configuration storage */
+    DEBUG("Clearing configuration...\n");
+    wdgReset(&WDGD1);
     for(int i = 0; i < CONFIG_MAX_SIZE/EEPROM_PAGE_SIZE; ++i)
     {
       uint8_t buf[EEPROM_PAGE_SIZE];
@@ -184,6 +195,8 @@ int config_init(I2CDriver *i2c)
       eeprom_write(EEPROM_PAGE_SIZE*i, buf, EEPROM_PAGE_SIZE);
     }
     /* Initialize sane defaults for UAVCAN configuration */
+    DEBUG("Loading default node configuration...\n");
+    wdgReset(&WDGD1);
     config_set_uint(CONFIG_NODE_ID, 127);
     config_set(CONFIG_NODE_NAME, "Unconfigured node", 17);
     config_set_uint(CONFIG_MAGIC, CONFIGURATION_MAGIC);

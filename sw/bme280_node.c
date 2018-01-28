@@ -12,7 +12,7 @@
 #include "node.h"
 #include "uavcan.h"
 #include "util.h"
-#include "i2c.h"
+#include "drivers/i2c.h"
 
 
 #define BME280_TIMEOUT MS2ST(50)

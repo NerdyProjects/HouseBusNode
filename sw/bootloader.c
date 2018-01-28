@@ -7,9 +7,11 @@
 #include <string.h>
 #include "hal.h"
 #include "ch.h"
+#include "bootloader_interface.h"
 
 extern uint32_t __application_flash_base__;
 uint32_t __attribute__(( section (".vtors_ram"))) vector_table[47];
+extern volatile uint8_t FirmwareUpdate;
 
 /* by default, boot application after this timeout */
 #define BOOTLOADER_TIMEOUT S2ST(10)
@@ -46,14 +48,15 @@ static void boot_application(void)
     NVIC_DisableIRQ(i);
   }
 
+  uint32_t *application_flash = &__application_flash_base__;
   /* load the application vector table into SRAM */
-  memcpy(vector_table, (void *)__application_flash_base__, sizeof(vector_table));
+  memcpy(vector_table, &__application_flash_base__, sizeof(vector_table));
   /* Remap SRAM to 0x0 so interrupt vectors are read from SRAM */
   SYSCFG->CFGR1 = SYSCFG_CFGR1_MEM_MODE;
   /* actually, ChibiOs does this as well if configured, but better safe than sorry... */
-  __set_MSP(*((uint32_t *)__application_flash_base__));
+  __set_MSP(__application_flash_base__);
   /* Jump to RESET of application, make sure to be in thumb mode */
-  uint32_t jump_target = (*((uint32_t *)(__application_flash_base__ + 4))) | 1;
+  uint32_t jump_target = application_flash[1] | 1;
   asm("BX %0" : : "r"(jump_target));
 }
 
@@ -66,6 +69,15 @@ void bootloader_command_executed(void)
 void bootloader_loop(void)
 {
   systime_t boot_application_at = chVTGetSystemTime() + BOOTLOADER_TIMEOUT;
+  if(bootloader_interface.magic == BOOTLOADER_INTERFACE_VALID_MAGIC &&
+     bootloader_interface.request_from_node_id &&
+     bootloader_interface.request_file_name_length)
+  {
+    FirmwareUpdate = 1;
+    command_executed = 1;
+    /* Invalidate data from now on */
+    bootloader_interface.magic = 0;
+  }
   while(boot_application_at > chVTGetSystemTime())
   {
     if(command_executed)

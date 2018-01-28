@@ -8,4 +8,4 @@
 
 #include "bootloader_interface.h"
 
-struct bootloader_interface __attribute__ ((section (".bootloader_interface"))) bootloader_interface;
+volatile struct bootloader_interface __attribute__ ((used)) __attribute__ ((section (".bootloader_interface"))) bootloader_interface;

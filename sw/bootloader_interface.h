@@ -10,13 +10,15 @@
 
 #include <stdint.h>
 
+#define BOOTLOADER_INTERFACE_VALID_MAGIC 0x6832F3E0
+
 struct bootloader_interface {
+  uint32_t magic;
   uint8_t request_from_node_id;
   uint8_t request_file_name[200];
   uint8_t request_file_name_length;
 };
 
-extern struct bootloader_interface __attribute__ ((section (".bootloader_interface"))) bootloader_interface;
+extern volatile struct bootloader_interface __attribute__ ((section (".bootloader_interface"))) bootloader_interface;
 
-extern
 #endif /* BOOTLOADER_INTERFACE_H_ */

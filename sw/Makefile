@@ -30,7 +30,7 @@ endif
 
 # Enable this if you want link time optimizations (LTO)
 ifeq ($(USE_LTO),)
-  USE_LTO = yes
+  USE_LTO = no
 endif
 
 # If enabled, this option allows to compile the application in THUMB mode.
@@ -131,7 +131,8 @@ CSRC = $(STARTUPSRC) \
        drivers/i2c.c \
        drivers/eeprom24c.c \
        libcanard/canard.c \
-       exception.c
+       exception.c \
+       bootloader_interface.c
        
 ifeq ($(BOOTLOADER),1)
 CSRC += firmware_update.c \

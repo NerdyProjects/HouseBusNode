@@ -26,7 +26,7 @@
 #endif
 
 static const WDGConfig wdgconfig = {
-    7, 164, 0x0FFF
+    7, 0x0FFF, 0x0FFF
 };
 
 /*
@@ -42,16 +42,19 @@ int main(void)
    * - Kernel initialization, the main() function becomes a thread and the
    *   RTOS is active.
    */
+
   halInit();
   chSysInit();
-  DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP | DBGMCU_APB1_FZ_DBG_WWDG_STOP;
   wdgInit();
-//  wdgStart(&WDGD1, &wdgconfig);
+  RCC->APB2ENR |= RCC_APB2ENR_DBGMCUEN; //enable MCU debug module clock
+  DBGMCU->APB1FZ |= DBGMCU_APB1_FZ_DBG_IWDG_STOP | DBGMCU_APB1_FZ_DBG_WWDG_STOP;
+  wdgStart(&WDGD1, &wdgconfig);
 
   /*
    * Activates the serial driver 2 using the driver default configuration.
    */
   sdStart(&SD1, NULL);
+  DEBUG("Hi\n");
   wdgReset(&WDGD1);
   i2c_init();
   if(config_init(&I2CD1) < 0)

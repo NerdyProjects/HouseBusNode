@@ -13,14 +13,15 @@
 #include "uavcan.h"
 #include "node.h"
 
+
+
 static uint32_t file_request_ptr = 0;
 static uint8_t file_request_pending = 0;
 static uint8_t file_eof = 0;
 
 static uint8_t firmware_buffer[FLASH_PAGE_SIZE];
 static uint32_t firmware_buffer_ptr = 0;
-
-struct bootloader_interface __attribute__ ((section (".bootloader_interface"))) bootloader_interface;
+static uint32_t firmware_write_offset = 0;
 
 
 extern uint32_t __application_flash_base__;
@@ -31,12 +32,12 @@ void onFileRead(CanardInstance* ins, CanardRxTransfer* transfer)
   int16_t chunk_length = transfer->payload_len - 2;
   if(!file_request_pending)
   {
-    ERROR("Received FileRead response without request\n");
+    ERROR("FileRead response wo request\n");
     return;
   }
   if(chunk_length < 0 || chunk_length > 256)
   {
-    ERROR("Received FileRead response of invalid size\n");
+    ERROR("FileRead resp invalid size\n");
     return;
   }
   canardDecodeScalar(transfer, 0, 16, 1, &error);
@@ -67,45 +68,66 @@ static void requestFileRead(CanardInstance* ins, uint32_t offset)
       CANARD_TRANSFER_PRIORITY_LOW, CanardRequest, request, size);
   if (bc_res <= 0)
   {
-    ERROR("Could not send file request; error %d\n", bc_res);
+    ERROR("file req sending error %d\n", bc_res);
   }
   node_tx_request();
 }
 
+static void initGlobals(void)
+{
+  firmware_buffer_ptr = 0;
+  file_eof = 0;
+  file_request_ptr = 0;
+  firmware_write_offset = 0;
+}
+
 int processFirmwareUpdate(CanardInstance* ins)
 {
-  uint32_t firmware_max_size = FLASH_TOT_SIZE - __application_flash_base__;
   if(!file_request_pending)
   {
     /* received all requested data, so request new or write */
     if(file_eof || firmware_buffer_ptr == FLASH_PAGE_SIZE)
     {
       /* enough data to write -> write */
-      void *flash_write = (void *)(__application_flash_base__ + file_request_ptr - firmware_buffer_ptr);
+      void *flash_write = (void *)((uint32_t)&__application_flash_base__ + firmware_write_offset);
+      DEBUG("Updating flash at %x (len %d):", (uint32_t)flash_write, firmware_buffer_ptr);
       if(!flash_verify_block(flash_write, firmware_buffer, firmware_buffer_ptr))
       {
         /* Content mismatch - erase and write */
         flash_erase_page(flash_write);
+        DEBUG(" (er)");
         flash_write_block(flash_write, firmware_buffer, firmware_buffer_ptr);
+        DEBUG(" (wr)");
         if(!flash_verify_block(flash_write, firmware_buffer, firmware_buffer_ptr))
         {
-          ERROR("Flash verify failed at addr %x len %u", flash_write, firmware_buffer_ptr);
+          ERROR("verify fail at %x (%u)", flash_write, firmware_buffer_ptr);
+          initGlobals();
           return FIRMWARE_UPDATE_ERR_FLASH_FAILED;
         }
+        DEBUG(" (ver)\n");
+      } else
+      {
+        DEBUG(" (OK)\n");
       }
       if(file_eof)
       {
         /* firmware update finished */
+        DEBUG("fw update done\n");
+        initGlobals();
         return FIRMWARE_UPDATE_DONE_SUCCESS;
       }
+      firmware_write_offset += firmware_buffer_ptr;
+      firmware_buffer_ptr = 0;
     } else
     {
       /* request more data to fill page buffer. An UAVCAN File read returns up to 256 bytes
        * (Only less when EOF is reached) */
       requestFileRead(ins, file_request_ptr);
+      DEBUG("req firmware %x\n", file_request_ptr);
       file_request_ptr += 256;
+      file_request_pending = 1;
     }
   }
+  return FIRMWARE_UPDATE_IN_PROGRESS;
   /* TODO: Timeout/retry for pending requests */
-
 }

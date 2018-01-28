@@ -9,6 +9,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "i2c.h"
+#include "util.h"
 #include "eeprom24c.h"
 
 #define I2C_ADDR 0x50
@@ -33,10 +34,12 @@ int eeprom_init(I2CDriver *i2c)
   {
     for(int try = 0; try < EEPROM_RETRY_COUNT; ++try)
     {
+      DEBUG("search EE @%x\n", address);
       msg_t result = i2cMasterReceiveTimeout(i2cd, address, &buf, 1, MS2ST(5));
       if(result == MSG_OK)
       {
         eeprom_address = address;
+        DEBUG("found\n");
         return address;
       } else if(result == MSG_TIMEOUT)
       {
@@ -61,7 +64,10 @@ int eeprom_read(uint16_t adr, uint8_t *out, uint16_t size)
   }
   for(int try = 0; try < EEPROM_RETRY_COUNT; ++try)
   {
-    result = i2cMasterTransmitTimeout(i2cd, eeprom_address, &adr, 2, out, size, MS2ST(10) + size * US2ST(500));
+    uint8_t buffer[2];
+    buffer[0] = adr >> 8;
+    buffer[1] = adr & 0x0FF;
+    result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, 2, out, size, MS2ST(10) + size * US2ST(500));
     if(result == MSG_TIMEOUT)
     {
       /* unlock driver */
@@ -76,7 +82,7 @@ int eeprom_read(uint16_t adr, uint8_t *out, uint16_t size)
 }
 
 /* waits a little bit and starts "ACK POLLING" afterwards */
-static int eeprom_write_ack_poll()
+static int eeprom_write_ack_poll(void)
 {
   int tries = 5;
   /* 10ms should be sufficient for a page write - we do not want to run into timeouts
@@ -117,7 +123,8 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
   while(write_size)
   {
     uint8_t success = 0;
-    memcpy(buffer, adr, 2);
+    buffer[0] = adr >> 8;
+    buffer[1] = adr & 0x0FF;
     memcpy(buffer+2, in, write_size);
     for(int try = 0; try < EEPROM_RETRY_COUNT; ++try)
     {
@@ -139,6 +146,7 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
     }
     size -= write_size;
     adr += write_size;
+    in += write_size;
     /* write full pages or a partial last page respectively */
     write_size = (size > EEPROM_PAGE_SIZE) ? EEPROM_PAGE_SIZE : size;
   }

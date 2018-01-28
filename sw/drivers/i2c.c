@@ -6,6 +6,7 @@
  */
 
 #include "hal.h"
+#include "util.h"
 /* 100 kHz @ 8 MHz base clock */
 static const I2CConfig i2cconfig = {
   STM32_TIMINGR_PRESC(1U) |
@@ -24,6 +25,7 @@ void i2c_init(void)
   palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_OUTPUT_OPENDRAIN);
   palClearPad(GPIOB, GPIOB_I2C1_SCL);
   chThdSleep(US2ST(5));
+  DEBUG("Unlock I2C...");
   while(!palReadPad(GPIOB, GPIOB_I2C1_SDA))
   {
     palSetPad(GPIOB, GPIOB_I2C1_SCL);
@@ -31,6 +33,7 @@ void i2c_init(void)
     palClearPad(GPIOB, GPIOB_I2C1_SCL);
     chThdSleep(US2ST(5));
   }
+  DEBUG(" .");
   /* STOP condition */
   palClearPad(GPIOB, GPIOB_I2C1_SDA);
   palSetPad(GPIOB, GPIOB_I2C1_SCL);
@@ -51,6 +54,7 @@ void i2c_init(void)
     palClearPad(GPIOB, GPIOB_I2C1_SCL);
     chThdSleep(US2ST(5));
   } while(sda_high_cycles < 10);
+  DEBUG("\n");
   /* send a STOP condition afterwards */
   palClearPad(GPIOB, GPIOB_I2C1_SDA);
   chThdSleep(US2ST(5));

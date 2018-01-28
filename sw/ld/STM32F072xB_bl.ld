@@ -19,8 +19,8 @@
  */
 MEMORY
 {
-    flash0  : org = 0x08005000, len = 108k
-    flash1  : org = 0x08000000, len = 20k
+    flash0  : org = 0x08007000, len = 32k
+    flash1  : org = 0x08000000, len = 28672
     flash2  : org = 0x00000000, len = 0
     flash3  : org = 0x00000000, len = 0
     flash4  : org = 0x00000000, len = 0
@@ -80,7 +80,7 @@ REGION_ALIAS("PROCESS_STACK_RAM", ram0);
 
 /* RAM region to be used for data segment.*/
 REGION_ALIAS("DATA_RAM", ram0);
-REGION_ALIAS("DATA_RAM_LMA", flash0);
+REGION_ALIAS("DATA_RAM_LMA", flash1);
 
 /* RAM region to be used for BSS segment.*/
 REGION_ALIAS("BSS_RAM", ram0);

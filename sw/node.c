@@ -27,13 +27,27 @@ static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used 
 /* signalled when other threads schedule a TX request */
 event_source_t txrequest_event;
 
-uint8_t NodeRestartRequest = 0;
+systime_t NodeRestartAt;
+
 
 static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
 
 #ifdef BOOTLOADER
-uint8_t FirmwareUpdate = 0;
+volatile uint8_t FirmwareUpdate = 0;
 #endif
+
+void requestNodeRestart()
+{
+  if(NodeRestartAt == 0)
+  {
+    NodeRestartAt = chVTGetSystemTime() + S2ST(1);
+  }
+}
+
+static uint8_t isNodeRestartRequested()
+{
+  return (NodeRestartAt != 0);
+}
 
 static void payloadExtractArray(CanardRxTransfer *transfer, uint16_t offset, uint8_t len, uint8_t *dst)
 {
@@ -41,6 +55,7 @@ static void payloadExtractArray(CanardRxTransfer *transfer, uint16_t offset, uin
   {
     canardDecodeScalar(transfer, offset*8, 8, 0, dst++);
     len--;
+    offset++;
   }
 }
 
@@ -57,7 +72,7 @@ static void makeNodeStatusMessage(
       node_mode = UAVCAN_NODE_MODE_SOFTWAREUPDATE;
     }
 #endif
-  if(NodeRestartRequest)
+  if(isNodeRestartRequested())
   {
     node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
   }
@@ -113,12 +128,12 @@ static void onGetNodeInfo(CanardInstance* ins, CanardRxTransfer* transfer)
       transfer->priority, CanardResponse, &buffer[0], (uint16_t) total_size);
   if (resp_res <= 0)
   {
-    ERROR("Could not respond to GetNodeInfo; error %d\n", resp_res);
+    ERROR("GetNodeInfo resp fail; error %d\n", resp_res);
   }
   node_tx_request();
 }
 
-static const uint8_t restartNodeMagicNumber[UAVCAN_RESTART_NODE_REQUEST_MAX_SIZE] = {0xAC, 0xCE, 0x55, 0x1B, 0x1E};
+static const uint8_t restartNodeMagicNumber[UAVCAN_RESTART_NODE_REQUEST_MAX_SIZE] = {0x1E, 0x1B, 0x55, 0xCE, 0xAC};
 
 static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
 {
@@ -127,9 +142,8 @@ static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     response = 1;
     /* Asynchronous restart so we can send response package first.
-     * Uses watchdog timeout.
      */
-    NodeRestartRequest = 1;
+    requestNodeRestart();
   }
   const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
       UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE,
@@ -179,6 +193,7 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
   case 4:
     /* 4: string with length prefix */
     value_len = transfer->payload_head[2] + 1;
+    break;
   default:
     /* invalid payload */
     return;
@@ -206,24 +221,7 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
   if(config_get_param_size(config_id) != 0)
   {
     /* Parameter exists - Perform get or set */
-    if(unionTag == 0)
-    {
-      /* Empty value -> GET */
-      switch(config_get_param_type(config_id))
-      {
-      case CONFIG_PARAM_STRING:
-        buffer[0] = 4;
-        config_get(config_id, &buffer[2], &buffer[1]);
-        break;
-      case CONFIG_PARAM_INT:
-        buffer[0] = 1;
-        config_get(config_id, &buffer[1], NULL);
-        break;
-      default:
-        util_assert(0);
-        break;
-      }
-    } else
+    if(unionTag != 0)
     {
       /* Set */
       if(unionTag == 1)
@@ -240,10 +238,30 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
         config_set(config_id, str, transfer->payload_head[2]);
       }
     }
+    /* Always perform get for response: Actual/default/min/max value */
+    switch (config_get_param_type(config_id))
+    {
+    case CONFIG_PARAM_STRING:
+      buffer[0] = 4;
+      config_get(config_id, &buffer[2], &buffer[1]);
+      response_size = 1 + 1 + buffer[1] + 3;
+      break;
+    case CONFIG_PARAM_INT:
+      buffer[0] = 1;
+      config_get(config_id, &buffer[1], NULL);
+      response_size = 1 + 8 + 3;
+      break;
+    default:
+      util_assert(0);
+      break;
+    }
+    /* read name */
+    config_get_name(config_id, &buffer[response_size]);
+    response_size += strlen(&buffer[response_size]);
   } else
   {
-    /* Parameter does not exist - empty response signalizes that */
-    response_size = 0;
+    /* Parameter does not exist - response with 4 empty values signals that */
+    response_size = 4;
   }
   canardReleaseRxTransferPayload(ins, transfer);
   const int resp_res = canardRequestOrRespond(ins, transfer->source_node_id,
@@ -258,7 +276,7 @@ static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfe
   uint8_t filename_length = transfer->payload_len - 1;  /* Tail array optimisation for this data type */
   uint8_t source_id = transfer->payload_head[0];
 
-  if(NodeRestartRequest)
+  if(isNodeRestartRequested())
   {
     response = 1;
   }
@@ -280,7 +298,7 @@ static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfe
 #ifdef BOOTLOADER
     FirmwareUpdate = 1;
 #else
-    NodeRestartRequest = 1;
+    requestNodeRestart();
 #endif
   }
   canardReleaseRxTransferPayload(ins, transfer);
@@ -311,12 +329,12 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
     onBeginFirmwareUpdate(ins, transfer);
   }
   if ((transfer->transfer_type == CanardTransferTypeRequest)
-        && (transfer->data_type_id == UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID))
+        && (transfer->data_type_id == UAVCAN_PARAM_GETSET_DATA_TYPE_ID))
   {
     onParamGetSet(ins, transfer);
   }
 #ifdef BOOTLOADER
-  if ((transfer->transfer_type == CanardTransferTypeRequest)
+  if ((transfer->transfer_type == CanardTransferTypeResponse)
       && (transfer->data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
   {
     onFileRead(ins, transfer);
@@ -367,7 +385,7 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
       return true;
     }
 #ifdef BOOTLOADER
-    if ((transfer_type == CanardTransferTypeRequest)
+    if ((transfer_type == CanardTransferTypeResponse)
                     && (data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
     {
       *out_data_type_signature = UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE;
@@ -391,7 +409,7 @@ static void broadcast_node_status(void) {
       CANARD_TRANSFER_PRIORITY_LOW, buffer, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   if (bc_res <= 0)
   {
-    ERROR("Could not broadcast node status; error %d\n", bc_res);
+    ERROR("node status bc fail; error %d\n", bc_res);
   }
   node_tx_request();
 }
@@ -416,7 +434,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
         / stats.capacity_blocks;
 
     DEBUG(
-        "Memory pool stats: capacity %u blocks, usage %u blocks, peak usage %u blocks (%u%%)\n",
+        "Canard mem: cap %u blks, using %u, pk %u (%u%%)\n",
         stats.capacity_blocks, stats.current_usage_blocks,
         stats.peak_usage_blocks, peak_percent);
 
@@ -426,7 +444,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
      */
     if (peak_percent > 70)
     {
-      DEBUG("WARNING: ENLARGE MEMORY POOL");
+      DEBUG("WARN: ENLARGE Canard MEM");
     }
   }
 
@@ -468,11 +486,8 @@ static int processTx(void)
     txmsg.IDE = 1;
     txmsg.RTR = 0;
     if (canTransmit(&CAND1, CAN_ANY_MAILBOX, &txmsg, TIME_IMMEDIATE) == MSG_OK) {
+      wdgReset(&WDGD1);
       canardPopTxQueue(&canard);
-      if(!NodeRestartRequest)
-      {
-        wdgReset(&WDGD1);
-      }
     }
     else                    // Timeout - just exit and try again later
     {
@@ -507,7 +522,7 @@ static void processRx(void)
 #define CAN_EVT_TXC 1
 #define CAN_EVT_TXR 2
 #define CAN_EVT_ERR 3
-static THD_WORKING_AREA(waCanThread, 1024);
+static THD_WORKING_AREA(waCanThread, 2048);
 static THD_FUNCTION(CanThread, arg)
 {
   (void) arg;
@@ -529,6 +544,10 @@ static THD_FUNCTION(CanThread, arg)
       {
         /* Firmware update failed - application is likely to be broken now */
         node_health = UAVCAN_NODE_HEALTH_CRITICAL;
+        FirmwareUpdate = 0;
+      } else if(res == FIRMWARE_UPDATE_DONE_SUCCESS)
+      {
+        FirmwareUpdate = 0;
       }
     }
 #endif
@@ -537,6 +556,10 @@ static THD_FUNCTION(CanThread, arg)
       systime_t currentTime = chVTGetSystemTime();
       process1HzTasks(getMonotonicTimestampUSec());
       lastInvocation = currentTime; /* Intentionally exclude processing time */
+      if(NodeRestartAt && (currentTime > NodeRestartAt))
+      {
+        NVIC_SystemReset();
+      }
     }
     eventmask_t evts = chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(100));
     if(evts & (1 << CAN_EVT_RXC))
@@ -600,14 +623,8 @@ void node_init(void)
   wdgReset(&WDGD1);
   canardInit(&canard, canard_memory_pool, sizeof(canard_memory_pool),
       onTransferReceived, shouldAcceptTransfer, NULL);
-  canardSetLocalNodeID(&canard, 2);
+  canardSetLocalNodeID(&canard, config_get_uint(CONFIG_NODE_ID));
   wdgReset(&WDGD1);
-#ifdef BOOTLOADER
-  if(bootloader_interface.request_from_node_id && bootloader_interface.request_file_name_length)
-  {
-    FirmwareUpdate = 1;
-  }
-#endif
   chThdCreateStatic(waCanThread, sizeof(waCanThread), HIGHPRIO, CanThread,
       NULL);
 }

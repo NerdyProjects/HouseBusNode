@@ -271,7 +271,7 @@ SECTIONS
         __heap_end__ = .;
     } > HEAP_RAM
     
-    .bootloader_interface : ALIGN(4)
+    .bootloader_interface (NOLOAD) : ALIGN(4)
     {
         . = ALIGN(4);
         __bootloader_interface_base__ = .;
