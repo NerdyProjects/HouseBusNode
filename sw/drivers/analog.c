@@ -7,7 +7,7 @@
 
 #include "hal.h"
 
-#define ADC_CHANNELS 19
+#define ADC_CHANNELS 18
 #define ADC_CH_TS 16
 #define ADC_CH_VREF 17
 volatile adcsample_t adc_smp_raw[18];
