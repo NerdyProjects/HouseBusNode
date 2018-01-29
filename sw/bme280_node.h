@@ -8,8 +8,11 @@
 #ifndef BME280_NODE_H_
 #define BME280_NODE_H_
 
+#include "drivers/bme280_defs.h"
+
 void bme280_node_init(void);
-void bme280_node_broadcast_data(void);
+int bme280_node_read(struct bme280_data *data);
+int bme280_is_present(void);
 
 
 #endif /* BME280_NODE_H_ */

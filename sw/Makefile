@@ -139,7 +139,8 @@ CSRC += firmware_update.c \
 				bootloader.c
 else
 CSRC += bme280_node.c \
-        drivers/bme280.c
+        drivers/bme280.c \
+        drivers/analog.c
 endif
 
 

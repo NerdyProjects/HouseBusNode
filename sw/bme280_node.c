@@ -18,6 +18,7 @@
 #define BME280_TIMEOUT MS2ST(50)
 
 static struct bme280_dev bme;
+static uint8_t bme_present = 0;
 
 void delay_ms(uint32_t period) {
   chThdSleep(MS2ST(period));
@@ -69,32 +70,9 @@ int8_t i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) 
   }
 }
 
-void bme280_node_broadcast_data(void)
+int bme280_node_read(struct bme280_data *data)
 {
-  struct bme280_data data;
-  uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
-  uint8_t transfer_id = 0;
-
-  bme280_get_sensor_data(BME280_ALL, &data, &bme);
-  /* data contains:
-   *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
-   *  pressure in 10^-2 mbar (mbar = pres / 100) [30000-110000] -> 18 bit
-   *  temperature in centidegrees (degree = temp / 100) [-4000..85000] -> 18 bit
-   */
-  memset(buffer, 0, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-  canardEncodeScalar(buffer, 0, 18, &data.temperature);
-  canardEncodeScalar(buffer, 18, 17, &data.humidity);
-  canardEncodeScalar(buffer, 35, 18, &data.pressure);
-  const int bc_res = canardBroadcast(&canard,
-        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE,
-        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID, &transfer_id,
-        CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-  if (bc_res <= 0)
-  {
-    ERROR("Could not broadcast bme280 data; error %d\n", bc_res);
-  }
-  node_tx_request();
-
+  return bme280_get_sensor_data(BME280_ALL, &data, &bme);
 }
 
 void bme280_node_init(void) {
@@ -112,6 +90,7 @@ void bme280_node_init(void) {
       return;
     }
   }
+  bme_present = 1;
   /* Pressure/temperature gets FIR filtered, ~5.5 seconds step response time. */
   bme.settings.osr_h = BME280_OVERSAMPLING_8X;
   bme.settings.osr_p = BME280_OVERSAMPLING_2X;
@@ -121,4 +100,9 @@ void bme280_node_init(void) {
   bme280_set_sensor_settings(BME280_FILTER_SEL | BME280_STANDBY_SEL | BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL, &bme);
   bme280_set_sensor_mode(BME280_NORMAL_MODE, &bme);
   return;
+}
+
+int bme280_is_present(void)
+{
+  return bme_present;
 }

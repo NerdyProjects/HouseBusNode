@@ -21,6 +21,7 @@
 #include "bme280_node.h"
 #include "drivers/i2c.h"
 #include "config.h"
+#include "drivers/analog.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -62,6 +63,7 @@ int main(void)
     ERROR("configuration init failed\n");
   }
 #ifndef BOOTLOADER
+  analog_init();
   wdgReset(&WDGD1);
   bme280_node_init();
   wdgReset(&WDGD1);

@@ -17,6 +17,7 @@
 #include "bootloader_interface.h"
 #include "firmware_update.h"
 #include "config.h"
+#include "drivers/analog.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -414,6 +415,33 @@ static void broadcast_node_status(void) {
   node_tx_request();
 }
 
+
+static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t milliRelativeHumidity, uint32_t centiBarPressure, uint8_t validFlags)
+{
+  uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
+  uint8_t transfer_id = 0;
+
+  /* data contains:
+   *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
+   *  pressure in 10^-2 mbar (mbar = pres / 100) [30000-110000] -> 18 bit
+   *  temperature in centidegrees (degree = temp / 100) [-4000..85000] -> 18 bit
+   */
+  memset(buffer, 0, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
+  canardEncodeScalar(buffer, 0, 3, &validFlags);
+  canardEncodeScalar(buffer, 3, 18, &centiCelsiusTemperature);
+  canardEncodeScalar(buffer, 21, 17, &milliRelativeHumidity);
+  canardEncodeScalar(buffer, 38, 18, &centiBarPressure);
+  const int bc_res = canardBroadcast(&canard,
+        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE,
+        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID, &transfer_id,
+        CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
+  if (bc_res <= 0)
+  {
+    ERROR("failed environment bc; error %d\n", bc_res);
+  }
+  node_tx_request();
+}
+
 /**
  * This function is called at 1 Hz rate from the main loop.
  */
@@ -453,7 +481,17 @@ static void process1HzTasks(uint64_t timestamp_usec)
    */
   broadcast_node_status();
 #ifndef BOOTLOADER
-  bme280_node_broadcast_data();
+  if(bme280_is_present())
+  {
+    struct bme280_data data;
+    if(bme280_node_read(&data) == 0)
+    {
+      broadcast_environment_data(data.temperature, data.humidity, data.pressure, 7);
+    }
+  } else
+  {
+    broadcast_environment_data(analog_get_internal_ts(), 0, 0, 1);
+  }
 #endif
 }
 
