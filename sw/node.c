@@ -37,7 +37,7 @@ static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
 volatile uint8_t FirmwareUpdate = 0;
 #endif
 
-void requestNodeRestart()
+void requestNodeRestart(void)
 {
   if(NodeRestartAt == 0)
   {
@@ -45,7 +45,7 @@ void requestNodeRestart()
   }
 }
 
-static uint8_t isNodeRestartRequested()
+static uint8_t isNodeRestartRequested(void)
 {
   return (NodeRestartAt != 0);
 }
@@ -416,6 +416,7 @@ static void broadcast_node_status(void) {
 }
 
 
+/* Valid flags: 1 - humidity valid, 2 - pressure valid */
 static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t milliRelativeHumidity, uint32_t centiBarPressure, uint8_t validFlags)
 {
   uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
@@ -424,11 +425,11 @@ static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t
   /* data contains:
    *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
    *  pressure in 10^-2 mbar (mbar = pres / 100) [30000-110000] -> 18 bit
-   *  temperature in centidegrees (degree = temp / 100) [-4000..85000] -> 18 bit
+   *  temperature in centidegrees (degree = temp / 100) [-4000..85000] -> 19 bit
    */
   memset(buffer, 0, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-  canardEncodeScalar(buffer, 0, 3, &validFlags);
-  canardEncodeScalar(buffer, 3, 18, &centiCelsiusTemperature);
+  canardEncodeScalar(buffer, 0, 2, &validFlags);
+  canardEncodeScalar(buffer, 2, 19, &centiCelsiusTemperature);
   canardEncodeScalar(buffer, 21, 17, &milliRelativeHumidity);
   canardEncodeScalar(buffer, 38, 18, &centiBarPressure);
   const int bc_res = canardBroadcast(&canard,
@@ -486,11 +487,11 @@ static void process1HzTasks(uint64_t timestamp_usec)
     struct bme280_data data;
     if(bme280_node_read(&data) == 0)
     {
-      broadcast_environment_data(data.temperature, data.humidity, data.pressure, 7);
+      broadcast_environment_data(data.temperature, data.humidity, data.pressure, 3);
     }
   } else
   {
-    broadcast_environment_data(analog_get_internal_ts(), 0, 0, 1);
+    broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
   }
 #endif
 }
