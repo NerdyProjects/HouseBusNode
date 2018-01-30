@@ -72,7 +72,7 @@ int8_t i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) 
 
 int bme280_node_read(struct bme280_data *data)
 {
-  return bme280_get_sensor_data(BME280_ALL, &data, &bme);
+  return bme280_get_sensor_data(BME280_ALL, data, &bme);
 }
 
 void bme280_node_init(void) {

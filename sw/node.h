@@ -17,5 +17,6 @@ void node_tx_request(void);
 void requestNodeRestart(void);
 void signalError(uint32_t code);
 extern CanardInstance canard;
+void node_setMode(uint8_t mode);
 
 #endif /* NODE_H_ */

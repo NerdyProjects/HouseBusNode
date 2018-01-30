@@ -34,6 +34,7 @@ volatile uint32_t errorMessages[ERROR_MESSAGE_COUNT];
 volatile uint16_t errorCount;
 
 static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
+static uint8_t node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
 
 #ifdef BOOTLOADER
 volatile uint8_t FirmwareUpdate = 0;
@@ -47,6 +48,10 @@ void requestNodeRestart(void)
   }
 }
 
+void node_setMode(uint8_t mode)
+{
+  node_mode = mode;
+}
 static uint8_t isNodeRestartRequested(void)
 {
   return (NodeRestartAt != 0);
@@ -67,7 +72,6 @@ static void makeNodeStatusMessage(
 {
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   int uptime_sec = ST2S(chVTGetSystemTime());
-  uint8_t node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
   uint16_t vdda = analog_get_vdda();
 #ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
@@ -486,17 +490,21 @@ static void process1HzTasks(uint64_t timestamp_usec)
    */
   broadcast_node_status();
 #ifndef BOOTLOADER
-  if(bme280_is_present())
+  if(node_mode == UAVCAN_NODE_MODE_OPERATIONAL)
   {
-    struct bme280_data data;
-    if(bme280_node_read(&data) == 0)
+    if(bme280_is_present())
     {
-      broadcast_environment_data(data.temperature, data.humidity, data.pressure, 3);
+      struct bme280_data data;
+      if(bme280_node_read(&data) == 0)
+      {
+        broadcast_environment_data(data.temperature, data.humidity, data.pressure, 3);
+      }
+    } else
+    {
+      broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
     }
-  } else
-  {
-    broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
   }
+
 #endif
 }
 

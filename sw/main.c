@@ -24,6 +24,7 @@
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
 #include "pump_control.h"
+#include "uavcan.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -58,12 +59,15 @@ int main(void)
    */
   sdStart(&SD1, NULL);
   DEBUG("Hi\n");
-  wdgReset(&WDGD1);
   i2c_init();
   if(config_init(&I2CD1) < 0)
   {
     ERROR("configuration init failed\n");
   }
+  node_init();
+
+  wdgReset(&WDGD1);
+
 #ifndef BOOTLOADER
   analog_init();
   pump_control_init();
@@ -73,8 +77,7 @@ int main(void)
 #endif
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
   wdgReset(&WDGD1);
-  node_init();
-
+  node_setMode(UAVCAN_NODE_MODE_OPERATIONAL);
   /*
    * Normal main() thread activity, in this demo it does nothing except
    * sleeping in a loop and check the button state.
