@@ -29,7 +29,9 @@ static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used 
 event_source_t txrequest_event;
 
 systime_t NodeRestartAt;
-
+#define ERROR_MESSAGE_COUNT 8
+volatile uint32_t errorMessages[ERROR_MESSAGE_COUNT];
+volatile uint16_t errorCount;
 
 static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
 
@@ -66,6 +68,7 @@ static void makeNodeStatusMessage(
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   int uptime_sec = ST2S(chVTGetSystemTime());
   uint8_t node_mode = UAVCAN_NODE_MODE_OPERATIONAL;
+  uint16_t vdda = analog_get_vdda();
 #ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
   if(FirmwareUpdate)
@@ -85,6 +88,7 @@ static void makeNodeStatusMessage(
   canardEncodeScalar(buffer, 0, 32, &uptime_sec);
   canardEncodeScalar(buffer, 32, 2, &node_health);
   canardEncodeScalar(buffer, 34, 3, &node_mode);
+  canardEncodeScalar(buffer, 40, 16, &vdda);
 }
 
 static void readUniqueID(uint8_t* out_uid)
@@ -491,7 +495,8 @@ static void process1HzTasks(uint64_t timestamp_usec)
     }
   } else
   {
-    broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
+    uint32_t conduction = analog_meassure_conduction();
+    broadcast_environment_data(analog_get_internal_ts(), conduction & 0x0FFFF, conduction >> 16, 0);
   }
 #endif
 }
@@ -640,6 +645,14 @@ void node_tx_request(void)
 {
   chEvtBroadcast(&txrequest_event);
 }
+
+void signalError(uint32_t code) {
+  /* todo properly lock */
+  uint8_t i = errorCount++;
+  i %= ERROR_MESSAGE_COUNT;
+  errorMessages[i] = code;
+}
+
 
 void node_init(void)
 {

@@ -140,7 +140,8 @@ CSRC += firmware_update.c \
 else
 CSRC += bme280_node.c \
         drivers/bme280.c \
-        drivers/analog.c
+        drivers/analog.c \
+        pump_control.c
 endif
 
 

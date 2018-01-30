@@ -64,6 +64,7 @@ int main(void)
   }
 #ifndef BOOTLOADER
   analog_init();
+  pump_control_init();
   wdgReset(&WDGD1);
   bme280_node_init();
   wdgReset(&WDGD1);

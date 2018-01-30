@@ -6,6 +6,7 @@
  */
 
 #include "hal.h"
+#include "config.h"
 
 #define ADC_CHANNELS 18
 #define ADC_CH_TS 16
@@ -29,6 +30,18 @@ static ADCConversionGroup allChannels = {1, 19, adcFilterCallback, NULL, ADC_CFG
 #define TEMP110_CAL_ADDR ((uint16_t*) ((uint32_t) 0x1FFFF7C2))
 //Internal voltage reference raw value at 30 degrees C, VDDA=3.3V
 #define VREFINT_CAL_ADDR ((uint16_t*) ((uint32_t) 0x1FFFF7BA))
+
+#define CONDUCTION_SENSOR_1_PORT GPIOB
+#define CONDUCTION_SENSOR_1_PIN GPIOB_DIN3
+
+#define CONDUCTION_SENSOR_2_PORT GPIOB
+#define CONDUCTION_SENSOR_2_PIN GPIOB_DIN2
+
+#define CONDUCTION_SENSOR_COMMON_PORT GPIOB
+#define CONDUCTION_SENSOR_COMMON_PIN GPIOB_DIN4
+#define CONDUCTION_SENSOR_COMMON_ANALOG_CH 9
+
+#define ADC_MAX (16*4095)
 
 /* Filters raw data with f(o, n) = 1/16 o + 15/16 n; also increases resolution to 16 bits */
 static void adcFilterCallback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
@@ -56,12 +69,69 @@ void analog_init(void)
   adcSTM32EnableTS();
   adcSTM32EnableVREF();
   adcStartConversion(&ADCD1, &allChannels, adc_smp_raw, 1);
+  if(config_get_uint(CONFIG_HAS_ANALOG_CONDUCTION_SENSOR)) {
+    /* Conduction sensor at DIN4 (AIN) vs DIN3/DIN2.
+     * should be driven with alternating current to avoid electrolysis.
+     * Init: All lines to same level to avoid any current flow
+     */
+    palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, PAL_MODE_INPUT_PULLUP);
+    palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, PAL_MODE_INPUT_PULLUP);
+    palSetPadMode(CONDUCTION_SENSOR_COMMON_PORT, CONDUCTION_SENSOR_COMMON_PIN, PAL_MODE_INPUT_PULLUP);
+  }
+}
+
+int analog_meassure_conduction(void)
+{
+  /* polarity defines low(0) or high(1) on common port side */
+  static int polarity = 1;
+  iomode_t passive_mode = PAL_MODE_INPUT_ANALOG;
+  iomode_t input_mode = polarity ? PAL_MODE_INPUT_PULLUP : PAL_MODE_INPUT_PULLDOWN;
+
+  uint16_t sensor1, sensor2;
+
+  /* first measure sensor 1 */
+  palSetPadMode(CONDUCTION_SENSOR_COMMON_PORT, CONDUCTION_SENSOR_COMMON_PIN, input_mode);
+  palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, passive_mode);
+  palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, PAL_MODE_OUTPUT_PUSHPULL);
+  if(polarity)
+  {
+    palClearPad(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN);
+  } else
+  {
+    palSetPad(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN);
+  }
+  chThdSleep(MS2ST(1));
+  sensor1 = adc_smp_raw[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
+
+  /* then measure sensor 2 */
+  palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, passive_mode);
+  palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, PAL_MODE_OUTPUT_PUSHPULL);
+  if(polarity)
+  {
+    palClearPad(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN);
+  } else
+  {
+    palSetPad(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN);
+  }
+  chThdSleep(MS2ST(1));
+  sensor2 = adc_smp_raw[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
+
+  /* finally, passivate & change polarity */
+  palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, input_mode);
+  palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, input_mode);
+  polarity = !polarity;
+
+  return ((uint32_t)sensor1 << 16) | sensor2;
+}
+
+int analog_conduction_closed(uint8_t sensor) {
+  return 0;
 }
 
 /* read internal temperature sensor in centi-degrees */
 int analog_get_internal_ts(void)
 {
-  int32_t t = ((adc_smp_filtered[ADC_CH_TS] * (*VREFINT_CAL_ADDR)) / adc_smp_filtered[ADC_CH_VREF]) - (int32_t)*TEMP30_CAL_ADDR;
+  int32_t t = ((adc_smp_filtered[ADC_CH_TS]/16 * (*VREFINT_CAL_ADDR)) / (adc_smp_filtered[ADC_CH_VREF]/16)) - (int32_t)*TEMP30_CAL_ADDR;
   t *= 11000 - 3000;
   t = t / (int32_t)(*TEMP110_CAL_ADDR - *TEMP30_CAL_ADDR);
   t += 3000;
@@ -70,5 +140,5 @@ int analog_get_internal_ts(void)
 
 int analog_get_vdda(void)
 {
-  return (3300 * (*VREFINT_CAL_ADDR)) / adc_smp_filtered[ADC_CH_VREF];
+  return (16 * 3300 * (*VREFINT_CAL_ADDR)) / adc_smp_filtered[ADC_CH_VREF];
 }
