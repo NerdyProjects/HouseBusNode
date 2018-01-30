@@ -141,6 +141,7 @@ else
 CSRC += bme280_node.c \
         drivers/bme280.c \
         drivers/analog.c \
+        conduction_sensor.c \
         pump_control.c
 endif
 
@@ -170,7 +171,7 @@ TCSRC =
 TCPPSRC =
 
 # List ASM source files here
-ASMSRC =
+ASMSRC = qfplib-20161124/qfplib.s
 ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
 INCDIR = $(CHIBIOS)/os/license \
@@ -178,7 +179,8 @@ INCDIR = $(CHIBIOS)/os/license \
          $(HALINC) $(PLATFORMINC) $(TESTINC) \
          board \
          $(CHIBIOS)/os/hal/lib/streams $(CHIBIOS)/os/various \
-         libcanard
+         libcanard \
+         qfplib-20161124
 
 
 

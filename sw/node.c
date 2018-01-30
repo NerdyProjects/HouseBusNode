@@ -495,8 +495,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
     }
   } else
   {
-    uint32_t conduction = analog_meassure_conduction();
-    broadcast_environment_data(analog_get_internal_ts(), conduction & 0x0FFFF, conduction >> 16, 0);
+    broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
   }
 #endif
 }

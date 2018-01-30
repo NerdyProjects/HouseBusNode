@@ -22,6 +22,8 @@
 #include "drivers/i2c.h"
 #include "config.h"
 #include "drivers/analog.h"
+#include "conduction_sensor.h"
+#include "pump_control.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
