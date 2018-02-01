@@ -19,12 +19,20 @@
 #define CONDUCTION_SENSOR_COMMON_PIN GPIOB_DIN4
 #define CONDUCTION_SENSOR_COMMON_ANALOG_CH 9
 
-uint16_t SensorRaw[2];
-uint16_t SensorRef[2];
+#define CONDUCTION_THRESHOLD 0.4f
+
+#define CONDUCTION_MAX_SENSORS 2
+
+static uint16_t SensorRaw[CONDUCTION_MAX_SENSORS];
+static uint8_t SensorRefPolarity;
+static uint8_t error;
+static uint8_t conduction_present_num;
+MUTEX_DECL(conductionSensorDataMtx);
 
 void conduction_init(void)
 {
-  if(config_get_uint(CONFIG_HAS_ANALOG_CONDUCTION_SENSOR)) {
+  conduction_present_num = config_get_uint(CONFIG_HAS_ANALOG_CONDUCTION_SENSOR);
+  if(conduction_present_num) {
     /* Conduction sensor at DIN4 (AIN) vs DIN3/DIN2.
      * should be driven with alternating current to avoid electrolysis.
      * Init: All lines to same level to avoid any current flow
@@ -32,16 +40,34 @@ void conduction_init(void)
     palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, PAL_MODE_INPUT_PULLUP);
     palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, PAL_MODE_INPUT_PULLUP);
     palSetPadMode(CONDUCTION_SENSOR_COMMON_PORT, CONDUCTION_SENSOR_COMMON_PIN, PAL_MODE_INPUT_PULLUP);
+    if(conduction_present_num > CONDUCTION_MAX_SENSORS)
+    {
+      conduction_present_num = CONDUCTION_MAX_SENSORS;
+    }
+  }
+}
+
+/* checks v to be an acceptable reference for polarity.
+ * Sets a global error state if failed.
+ */
+static void checkReferenceLevel(uint16_t v, uint8_t polarity)
+{
+  if((polarity && v < (ANALOG_MAX / 16) * 11)
+      || (!polarity && v > (ANALOG_MAX / 16) * 5))
+  {
+    error = 1;
   }
 }
 
 void conduction_acquire(void)
 {
   /* polarity defines low(0) or high(1) on common port side */
-  static int polarity = 1;
+  static uint8_t polarity = 1;
+  uint8_t ref;
   iomode_t passive_mode = PAL_MODE_INPUT_ANALOG;
   iomode_t input_mode = polarity ? PAL_MODE_INPUT_PULLUP : PAL_MODE_INPUT_PULLDOWN;
 
+  chMtxLock(&conductionSensorDataMtx);
   palSetPadMode(CONDUCTION_SENSOR_COMMON_PORT, CONDUCTION_SENSOR_COMMON_PIN, input_mode);
 
   /* first measure reference (open connection) */
@@ -50,7 +76,8 @@ void conduction_acquire(void)
   chThdSleep(MS2ST(1));
   analog_filter_reset(CONDUCTION_SENSOR_COMMON_ANALOG_CH);
   chThdSleep(MS2ST(5));
-  SensorRef[0] = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
+  ref = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
+  checkReferenceLevel(ref, polarity);
 
   /* first measure sensor 1 */
   palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, passive_mode);
@@ -88,32 +115,44 @@ void conduction_acquire(void)
   chThdSleep(MS2ST(1));
   analog_filter_reset(CONDUCTION_SENSOR_COMMON_ANALOG_CH);
   chThdSleep(MS2ST(5));
-  SensorRef[1] = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
+  ref = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
+  checkReferenceLevel(ref, polarity);
 
+  SensorRefPolarity = polarity;
   /* finally, passivate & change polarity */
   palSetPadMode(CONDUCTION_SENSOR_COMMON_PORT, CONDUCTION_SENSOR_COMMON_PIN, passive_mode);
   palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, passive_mode);
   palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, passive_mode);
   polarity = !polarity;
+  chMtxUnlock(&conductionSensorDataMtx);
 }
 
-/*
- * MAX 120 REF 100 SIG 10 -> SIG/REF = 0.1
- * MAX 120 REF 10 SIG 100 -> 1/SIG/REF
- */
+uint8_t conduction_getClearError(void)
+{
+  uint8_t e = error;
+  error = 0;
+  return e;
+}
+
+
 uint8_t conduction_evaluate(uint8_t sensor, uint8_t *quality)
 {
-  if(((SensorRef[0] < (ANALOG_MAX/4)) && (SensorRef[1] < (ANALOG_MAX/4)))
-      || ((SensorRef[0] > (ANALOG_MAX/4*3)) && (SensorRef[1] > (ANALOG_MAX/4*3))))
-  {
-    /* reference not in same quadrants -> error */
-    if(quality)
-    {
-      *quality = 0;
-    }
-    return 0xFF;
+  chMtxLock(&conductionSensorDataMtx);
+  float raw = qfp_int2float(SensorRaw[sensor]);
+  float v = qfp_fdiv(raw, ANALOG_MAX);
+  if(SensorRefPolarity) {
+    v = qfp_fsub(1.0f, v);
   }
-  float v = qfp_fdiv(qfp_int2float(SensorRaw[sensor]), ANALOG_MAX);
+  chMtxUnlock(&conductionSensorDataMtx);
+  if(quality)
+  {
+    *quality = qfp_float2int(qfp_fmul(255.0f, v));
+  }
 
-  return qfp_fcmp(v, 0.3f);
+  return (qfp_fcmp(v, CONDUCTION_THRESHOLD) > 0);
+}
+
+uint8_t conduction_num_sensors(void)
+{
+  return conduction_present_num;
 }
