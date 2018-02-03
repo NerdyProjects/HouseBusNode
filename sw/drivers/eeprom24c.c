@@ -35,7 +35,9 @@ int eeprom_init(I2CDriver *i2c)
     for(int try = 0; try < EEPROM_RETRY_COUNT; ++try)
     {
       DEBUG("search EE @%x\n", address);
+      i2cAcquireBus(i2cd);
       msg_t result = i2cMasterReceiveTimeout(i2cd, address, &buf, 1, MS2ST(5));
+      i2cReleaseBus(i2cd);
       if(result == MSG_OK)
       {
         eeprom_address = address;
@@ -67,7 +69,9 @@ int eeprom_read(uint16_t adr, uint8_t *out, uint16_t size)
     uint8_t buffer[2];
     buffer[0] = adr >> 8;
     buffer[1] = adr & 0x0FF;
+    i2cAcquireBus(i2cd);
     result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, 2, out, size, MS2ST(10) + size * US2ST(500));
+    i2cReleaseBus(i2cd);
     if(result == MSG_TIMEOUT)
     {
       /* unlock driver */
@@ -120,6 +124,7 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
   page_space = next_page_adr - adr;
   write_size = (page_space < size) ? page_space : size;
 
+
   while(write_size)
   {
     uint8_t success = 0;
@@ -128,7 +133,9 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
     memcpy(buffer+2, in, write_size);
     for(int try = 0; try < EEPROM_RETRY_COUNT; ++try)
     {
+      i2cAcquireBus(i2cd);
       result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, write_size + 2, NULL, 0, MS2ST(20));
+      i2cReleaseBus(i2cd);
       if(result == MSG_TIMEOUT)
       {
         /* unlock driver */

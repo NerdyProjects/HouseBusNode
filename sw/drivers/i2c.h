@@ -10,5 +10,4 @@
 
 void i2c_init(void);
 
-
 #endif /* DRIVERS_I2C_H_ */

@@ -26,7 +26,9 @@ void delay_ms(uint32_t period) {
 }
 
 int8_t i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+  i2cAcquireBus(&I2CD1);
   msg_t res = i2cMasterTransmitTimeout(&I2CD1, dev_id, &reg_addr, 1, data, len, BME280_TIMEOUT);
+  i2cReleaseBus(&I2CD1);
   if(res == MSG_TIMEOUT)
   {
     /* unlock driver */
@@ -55,7 +57,9 @@ int8_t i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) 
   for(uint8_t i = 0; i < len; ++i) {
     temp[i+1] = data[i];
   }
+  i2cAcquireBus(&I2CD1);
   res = i2cMasterTransmitTimeout(&I2CD1, dev_id, temp, len+1, NULL, 0, BME280_TIMEOUT);
+  i2cReleaseBus(&I2CD1);
   if(res == MSG_TIMEOUT)
   {
     /* unlock driver */

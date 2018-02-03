@@ -20,6 +20,7 @@ static const I2CConfig i2cconfig = {
 void i2c_init(void)
 {
   uint8_t sda_high_cycles = 0;
+  i2cAcquireBus(&I2CD1);
   palSetPadMode(GPIOB, GPIOB_I2C1_SCL, PAL_MODE_OUTPUT_OPENDRAIN);
   palSetPad(GPIOB, GPIOB_I2C1_SDA);
   palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_OUTPUT_OPENDRAIN);
@@ -68,4 +69,5 @@ void i2c_init(void)
   i2cStart(&I2CD1, &i2cconfig);
   /* give I2C devices some time to recover from internal action */
   chThdSleep(MS2ST(10));
+  i2cReleaseBus(&I2CD1);
 }

@@ -19,6 +19,7 @@
 #include "config.h"
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
+#include "pump_control.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -92,6 +93,11 @@ void requestNodeRestart(void)
   {
     NodeRestartAt = chVTGetSystemTime() + S2ST(1);
   }
+}
+
+uint8_t node_getMode(void)
+{
+  return node_mode;
 }
 
 void node_setMode(uint8_t mode)
@@ -473,7 +479,7 @@ static void broadcast_node_status(void) {
 static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t milliRelativeHumidity, uint32_t centiBarPressure, uint8_t validFlags)
 {
   uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
-  uint8_t transfer_id = 0;
+  static uint8_t transfer_id = 0;
 
   /* data contains:
    *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
@@ -485,19 +491,43 @@ static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t
   canardEncodeScalar(buffer, 2, 19, &centiCelsiusTemperature);
   canardEncodeScalar(buffer, 21, 17, &milliRelativeHumidity);
   canardEncodeScalar(buffer, 38, 18, &centiBarPressure);
-  const int bc_res = canardLockBroadcast(&canard,
+  canardLockBroadcast(&canard,
         HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE,
         HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID, &transfer_id,
         CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-  if (bc_res <= 0)
-  {
-    ERROR("failed environment bc; error %d\n", bc_res);
-  }
 }
 
-static void broadcast_conduction_data(uint8_t state, uint8_t num, uint8_t *quality)
+static void broadcast_conduction_data(uint8_t error, uint8_t state, uint8_t num, uint8_t *quality)
 {
   uint8_t buffer[HOMEAUTOMATION_CONDUCTION_SENSOR_MESSAGE_SIZE];
+  static uint8_t transfer_id = 0;
+  /* bit0: Error in data */
+  buffer[0] = state; /* Bit 0-6: state */
+  if(error)
+  {
+    buffer[0] |= 0x80; /* Bit 7: error */
+  }
+  for(int i = 0; i < num; ++i) {
+    buffer[1+i] = quality[i];
+  }
+  canardLockBroadcast(&canard,
+          HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, buffer, 1 + num);
+}
+
+static void broadcast_pump_state(uint8_t state, uint32_t stoppedFor, uint16_t runningFor)
+{
+  uint8_t buffer[HOMEAUTOMATION_PUMP_STATE_MESSAGE_SIZE];
+  static uint8_t transfer_id = 0;
+  /* bit0: Error in data */
+  buffer[0] = state;
+  canardEncodeScalar(buffer, 8, 32, &stoppedFor);
+  canardEncodeScalar(buffer, 40, 16, &runningFor);
+  canardLockBroadcast(&canard,
+          HOMEAUTOMATION_PUMP_STATE_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_PUMP_STATE_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_PUMP_STATE_MESSAGE_SIZE);
 }
 
 /**
@@ -561,6 +591,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
       uint8_t state = 0;
       uint8_t q[8];
       conduction_acquire();
+      uint8_t error = conduction_getClearError();
       for(int i = 0; i < num; ++i)
       {
         if(conduction_evaluate(i, &q[i]))
@@ -568,7 +599,14 @@ static void process1HzTasks(uint64_t timestamp_usec)
           state |= (1 << i);
         }
       }
-      broadcast_conduction_data(state, num, q);
+      broadcast_conduction_data(error, state, num, q);
+    }
+    if(pump_is_present())
+    {
+      uint32_t stoppedFor;
+      uint16_t runningFor;
+      uint8_t state = pump_get_state(&stoppedFor, &runningFor);
+      broadcast_pump_state(state, stoppedFor, runningFor);
     }
   }
 
@@ -732,7 +770,6 @@ void node_tx_request(void)
 }
 
 void signalError(uint32_t code) {
-  /* todo properly lock */
   chMtxLock(&errorMtx);
   uint8_t i = errorCount++;
   i %= ERROR_MESSAGE_COUNT;

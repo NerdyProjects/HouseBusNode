@@ -8,6 +8,7 @@
 #include "hal.h"
 #include "config.h"
 #include "analog.h"
+#include "util.h"
 
 #define ADC_CH_TS 16
 #define ADC_CH_VREF 17
@@ -16,13 +17,14 @@ volatile adcsample_t adc_smp_raw[ANALOG_CHANNELS];
  * Although written from interrupt, data is always written as a word so always valid.
  */
 volatile uint16_t adc_smp_filtered[ANALOG_CHANNELS];
+volatile uint16_t analog_input_debug;
 uint8_t adc_filter_initialized = 0;
 
 static void adcFilterCallback(ADCDriver *adcp, adcsample_t *buffer, size_t n);
 /* ADC is clocked by 14 MHz HSI */
 /* just sample all channels regularly and filter them a bit :-) */
 /* conversion time ~18*18µs = ~324µs ~3 kHz */
-static ADCConversionGroup allChannels = {1, 19, adcFilterCallback, NULL, ADC_CFGR1_CONT | ADC_CFGR1_RES_12BIT, 0, 3, ADC_CHSELR_CHSEL};
+static ADCConversionGroup allChannels = {1, 18, adcFilterCallback, NULL, ADC_CFGR1_CONT | ADC_CFGR1_RES_12BIT, 0, 3, ADC_CHSELR_CHSEL & ~ADC_CHSELR_CHSEL18};
 
 //Temperature sensor raw value at 30 degrees C, VDDA=3.3V
 #define TEMP30_CAL_ADDR ((uint16_t*) ((uint32_t) 0x1FFFF7B8))
@@ -31,9 +33,21 @@ static ADCConversionGroup allChannels = {1, 19, adcFilterCallback, NULL, ADC_CFG
 //Internal voltage reference raw value at 30 degrees C, VDDA=3.3V
 #define VREFINT_CAL_ADDR ((uint16_t*) ((uint32_t) 0x1FFFF7BA))
 
-void analog_filter_reset(uint8_t channel)
+void analog_debug_input(uint16_t channelMask)
+{
+  analog_input_debug =  channelMask;
+}
+
+static void analog_filter_resetS(uint8_t channel)
 {
   adc_smp_filtered[channel] = adc_smp_raw[channel] * 16;
+}
+
+void analog_filter_reset(uint8_t channel)
+{
+  chSysLock();
+  analog_filter_resetS(channel);
+  chSysUnlock();
 }
 
 
@@ -44,7 +58,7 @@ static void adcFilterCallback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
   {
     for(int i = 0; i < ANALOG_CHANNELS; ++i)
     {
-      analog_filter_reset(i);
+      analog_filter_resetS(i);
     }
     adc_filter_initialized = 1;
   } else

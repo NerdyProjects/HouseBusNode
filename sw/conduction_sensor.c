@@ -5,6 +5,7 @@
  *      Author: matthias
  */
 #include <stdint.h>
+#include "util.h"
 #include "drivers/analog.h"
 #include "config.h"
 #include "qfplib.h"
@@ -19,7 +20,7 @@
 #define CONDUCTION_SENSOR_COMMON_PIN GPIOB_DIN4
 #define CONDUCTION_SENSOR_COMMON_ANALOG_CH 9
 
-#define CONDUCTION_THRESHOLD 0.4f
+#define CONDUCTION_THRESHOLD 0.25f
 
 #define CONDUCTION_MAX_SENSORS 2
 
@@ -63,7 +64,7 @@ void conduction_acquire(void)
 {
   /* polarity defines low(0) or high(1) on common port side */
   static uint8_t polarity = 1;
-  uint8_t ref;
+  uint16_t ref;
   iomode_t passive_mode = PAL_MODE_INPUT_ANALOG;
   iomode_t input_mode = polarity ? PAL_MODE_INPUT_PULLUP : PAL_MODE_INPUT_PULLDOWN;
 
