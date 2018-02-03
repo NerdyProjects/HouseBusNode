@@ -35,6 +35,26 @@ static void util_assert(int x) {
   }
 }
 
+static inline stm32_gpio_t* portToGPIO(uint8_t port)
+{
+  switch(port)
+  {
+  case 1:
+    return GPIOA;
+  case 2:
+    return GPIOB;
+  case 3:
+    return GPIOC;
+  case 4:
+    return GPIOD;
+  case 5:
+    return GPIOE;
+  case 6:
+    return GPIOF;
+  default:
+    return 0;
+  }
+}
 
 
 #endif /* UTIL_H_ */

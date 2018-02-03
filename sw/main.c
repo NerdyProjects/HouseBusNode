@@ -69,6 +69,7 @@ int main(void)
   wdgReset(&WDGD1);
 
 #ifndef BOOTLOADER
+  eventcount_init();
   analog_init();
   conduction_init();
   pump_control_init();

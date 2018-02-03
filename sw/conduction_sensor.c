@@ -9,6 +9,7 @@
 #include "drivers/analog.h"
 #include "config.h"
 #include "qfplib.h"
+#include "conduction_sensor.h"
 
 #define CONDUCTION_SENSOR_1_PORT GPIOB
 #define CONDUCTION_SENSOR_1_PIN GPIOB_DIN3
@@ -46,6 +47,8 @@ void conduction_init(void)
       conduction_present_num = CONDUCTION_MAX_SENSORS;
     }
   }
+  /* initialize data to realworld situation :-) */
+  conduction_acquire();
 }
 
 /* checks v to be an acceptable reference for polarity.

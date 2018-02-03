@@ -516,6 +516,15 @@ static void broadcast_conduction_data(uint8_t error, uint8_t state, uint8_t num,
           CANARD_TRANSFER_PRIORITY_LOW, buffer, 1 + num);
 }
 
+static void broadcast_eventcount(uint32_t eventcount)
+{
+  static uint8_t transfer_id = 0;
+  canardLockBroadcast(&canard,
+          HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, &eventcount, 4);
+}
+
 static void broadcast_pump_state(uint8_t state, uint32_t stoppedFor, uint16_t runningFor)
 {
   uint8_t buffer[HOMEAUTOMATION_PUMP_STATE_MESSAGE_SIZE];
@@ -607,6 +616,11 @@ static void process1HzTasks(uint64_t timestamp_usec)
       uint16_t runningFor;
       uint8_t state = pump_get_state(&stoppedFor, &runningFor);
       broadcast_pump_state(state, stoppedFor, runningFor);
+    }
+    if(eventcount_is_present())
+    {
+      uint32_t eventcount = eventcount_get_count();
+      broadcast_eventcount(eventcount);
     }
   }
 
@@ -760,6 +774,25 @@ static THD_FUNCTION(CanRxThread, arg)
   }
 }
 
+#ifndef BOOTLOADER
+static THD_WORKING_AREA(waFastTasksThread, 1024);
+static THD_FUNCTION(FastTasksThread, arg)
+{
+  (void) arg;
+  chRegSetThreadName("FastTasks");
+  while(!node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
+  {
+    chThdSleepS(5);
+  }
+  systime_t nextInvocation = chVTGetSystemTime();
+  while(node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
+  {
+    /* Executed every ~5ms. Can be used for key debouncing etc. */
+    eventcount_acquire();
+    nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + MS2ST(5));
+  }
+}
+#endif
 
 /* Signals a TX request for immediate transmission wakeup.
  * This method can optionally be called after scheduling a transmission,
@@ -805,4 +838,8 @@ void node_init(void)
         NULL);
   chThdCreateStatic(waCanNodeThread, sizeof(waCanNodeThread), NORMALPRIO, CanNodeThread,
       NULL);
+#ifndef BOOTLOADER
+  chThdCreateStatic(waFastTasksThread, sizeof(waFastTasksThread), HIGHPRIO, FastTasksThread,
+        NULL);
+#endif
 }
