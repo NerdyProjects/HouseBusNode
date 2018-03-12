@@ -1,0 +1,4 @@
+uint8 state
+uint32 stopped_for
+uint16 running_for
+
