@@ -55,7 +55,7 @@ void eventcount_acquire(void)
   for(int i = 0; i < EventcountPorts; ++i)
   {
     uint8_t state = palReadPad(Eventport[i], Eventpin[i]);
-    if((state == LastState[i]) && ((current - LastStateChange[i]) > EventStableMinST[i]))
+    if(EventStableMinST[i] == 0 || ((state == LastState[i]) && ((current - LastStateChange[i]) > EventStableMinST[i])))
     {
       /* stable state reached */
       if(state && !LastStableState[i])
