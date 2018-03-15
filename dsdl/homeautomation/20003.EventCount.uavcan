@@ -1,1 +1,1 @@
-uint32 events
+uint32[<=7] events

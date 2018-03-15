@@ -20,6 +20,7 @@
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
 #include "pump_control.h"
+#include "eventcount.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -516,13 +517,13 @@ static void broadcast_conduction_data(uint8_t error, uint8_t state, uint8_t num,
           CANARD_TRANSFER_PRIORITY_LOW, buffer, 1 + num);
 }
 
-static void broadcast_eventcount(uint32_t eventcount)
+static void broadcast_eventcounts(uint32_t *eventcounts, uint8_t cnt)
 {
   static uint8_t transfer_id = 0;
   canardLockBroadcast(&canard,
           HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_SIGNATURE,
           HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_ID, &transfer_id,
-          CANARD_TRANSFER_PRIORITY_LOW, &eventcount, 4);
+          CANARD_TRANSFER_PRIORITY_LOW, eventcounts, 4 * cnt);
 }
 
 static void broadcast_pump_state(uint8_t state, uint32_t stoppedFor, uint16_t runningFor)
@@ -619,8 +620,9 @@ static void process1HzTasks(uint64_t timestamp_usec)
     }
     if(eventcount_is_present())
     {
-      uint32_t eventcount = eventcount_get_count();
-      broadcast_eventcount(eventcount);
+      uint32_t eventcounts[EVENTCOUNT_PORTS];
+      uint8_t valid = eventcount_get_count(eventcounts);
+      broadcast_eventcounts(eventcounts, valid);
     }
   }
 

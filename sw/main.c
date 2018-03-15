@@ -25,6 +25,7 @@
 #include "conduction_sensor.h"
 #include "pump_control.h"
 #include "uavcan.h"
+#include "eventcount.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif

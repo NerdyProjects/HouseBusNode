@@ -9,66 +9,75 @@
 #include "util.h"
 #include "config.h"
 #include "eventcount.h"
+#include <string.h>
 
-static stm32_gpio_t *Eventport;
-static uint8_t Eventpin;
-static systime_t EventStableMinST;
-static systime_t LastStateChange;
-static uint8_t LastState;
-static uint8_t LastStableState;
-static uint32_t EventCount;
+static stm32_gpio_t *Eventport[EVENTCOUNT_PORTS];
+static uint8_t Eventpin[EVENTCOUNT_PORTS];
+static systime_t EventStableMinST[EVENTCOUNT_PORTS];
+static systime_t LastStateChange[EVENTCOUNT_PORTS];
+static uint8_t LastState[EVENTCOUNT_PORTS];
+static uint8_t LastStableState[EVENTCOUNT_PORTS];
+static uint32_t EventCount[EVENTCOUNT_PORTS];
+static uint8_t EventcountPorts;
 
 void eventcount_init(void)
 {
   int v;
   uint8_t valid;
-  config_get(CONFIG_EVENTCOUNT_PORT, &v, &valid);
-  if(valid < 1 || valid > 4 || (Eventport = portToGPIO(v)) == 0)
+  EventcountPorts = 0;
+  for(int i = 0; i < EVENTCOUNT_PORTS; ++i)
   {
-    return;
-  }
-  config_get(CONFIG_EVENTCOUNT_PIN, &v, &valid);
-  if(valid < 1 || valid > 4 || v > 15)
-  {
-    return;
-  }
-  Eventpin = v;
-  config_get(CONFIG_EVENTCOUNT_MIN_STABLE_MS, &v, &valid);
-  {
+    config_get(CONFIG_EVENTCOUNT0_PORT + 3*i, &v, &valid);
+    if(valid < 1 || valid > 4 || (Eventport[i] = portToGPIO(v)) == 0)
+    {
+      break;
+    }
+    config_get(CONFIG_EVENTCOUNT0_PIN + 3*i, &v, &valid);
+    if(valid < 1 || valid > 4 || v > 15)
+    {
+      break;
+    }
+    Eventpin[i] = v;
+    config_get(CONFIG_EVENTCOUNT0_MIN_STABLE_MS + 3*i, &v, &valid);
     if(valid < 1 || valid > 4)
     {
-      return;
+      break;
     }
+    EventStableMinST[i] = MS2ST(v);
+    palSetPadMode(Eventport[i], Eventpin[i], PAL_MODE_INPUT_PULLUP);
+    EventcountPorts++;
   }
-  EventStableMinST = MS2ST(v);
-  palSetPadMode(Eventport, Eventpin, PAL_MODE_INPUT_PULLUP);
 }
 
 void eventcount_acquire(void)
 {
   systime_t current = chVTGetSystemTime();
-  uint8_t state = palReadPad(Eventport, Eventpin);
-  if((state == LastState) && ((current - LastStateChange) > EventStableMinST))
+  for(int i = 0; i < EventcountPorts; ++i)
   {
-    /* stable state reached */
-    if(state && !LastStableState)
+    uint8_t state = palReadPad(Eventport[i], Eventpin[i]);
+    if((state == LastState[i]) && ((current - LastStateChange[i]) > EventStableMinST[i]))
     {
-      EventCount++;
+      /* stable state reached */
+      if(state && !LastStableState[i])
+      {
+        EventCount[i]++;
+      }
+      LastStableState[i] = state;
+    } else if(state != LastState[i])
+    {
+      LastState[i] = state;
+      LastStateChange[i] = current;
     }
-    LastStableState = state;
-  } else if(state != LastState)
-  {
-    LastState = state;
-    LastStateChange = current;
   }
 }
 
-uint32_t eventcount_get_count(void)
+uint8_t eventcount_get_count(uint32_t *v)
 {
-  return EventCount;
+  memcpy(v, EventCount, EventcountPorts * sizeof(uint32_t));
+  return EventcountPorts;
 }
 
 uint8_t eventcount_is_present(void)
 {
-  return Eventport != 0;
+  return EventcountPorts;
 }

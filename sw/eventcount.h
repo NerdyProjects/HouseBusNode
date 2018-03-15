@@ -10,7 +10,9 @@
 
 void eventcount_init(void);
 void eventcount_acquire(void);
-uint32_t eventcount_get_count(void);
+uint8_t eventcount_get_count(uint32_t *v);
 uint8_t eventcount_is_present(void);
+
+#define EVENTCOUNT_PORTS 4
 
 #endif /* EVENTCOUNT_H_ */
