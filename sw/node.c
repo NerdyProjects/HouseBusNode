@@ -588,7 +588,12 @@ static void process1HzTasks(uint64_t timestamp_usec)
       struct bme280_data data;
       if(bme280_node_read(&data) == 0)
       {
-        broadcast_environment_data(data.temperature, data.humidity, data.pressure, 3);
+        uint8_t valid = 3;
+        if(data.humidity == 0)
+        {
+          valid = 2;
+        }
+        broadcast_environment_data(data.temperature, data.humidity, data.pressure, valid);
       }
     } else
     {
