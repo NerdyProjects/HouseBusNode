@@ -126,13 +126,15 @@ static void makeNodeStatusMessage(
 {
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   int uptime_sec = ST2S(chVTGetSystemTime());
-  uint16_t vdda = analog_get_vdda();
+  uint16_t vdda = 0;
 #ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
   if(FirmwareUpdate)
     {
       node_mode = UAVCAN_NODE_MODE_SOFTWAREUPDATE;
     }
+#else
+  vdda= analog_get_vdda();
 #endif
   if(isNodeRestartRequested())
   {
