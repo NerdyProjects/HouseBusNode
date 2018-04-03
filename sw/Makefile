@@ -143,7 +143,8 @@ CSRC += bme280_node.c \
         drivers/analog.c \
         conduction_sensor.c \
         pump_control.c \
-        eventcount.c
+        eventcount.c \
+        sml.c
 endif
 
 

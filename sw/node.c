@@ -528,6 +528,15 @@ static void broadcast_eventcounts(uint32_t *eventcounts, uint8_t cnt)
           CANARD_TRANSFER_PRIORITY_LOW, eventcounts, 4 * cnt);
 }
 
+static void broadcast_meter(uint8_t *meter)
+{
+  static uint8_t transfer_id = 0;
+  canardLockBroadcast(&canard,
+          HOMEAUTOMATION_METER_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_METER_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, meter, 8);
+}
+
 static void broadcast_pump_state(uint8_t state, uint32_t stoppedFor, uint16_t runningFor)
 {
   uint8_t buffer[HOMEAUTOMATION_PUMP_STATE_MESSAGE_SIZE];
@@ -798,6 +807,14 @@ static THD_FUNCTION(FastTasksThread, arg)
   {
     /* Executed every ~5ms. Can be used for key debouncing etc. */
     eventcount_acquire();
+    if(sml_is_present())
+    {
+      uint8_t *buffer = sml_tick();
+      if(buffer)
+      {
+        broadcast_meter(buffer);
+      }
+    }
     nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + MS2ST(5));
   }
 }
