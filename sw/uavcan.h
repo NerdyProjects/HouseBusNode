@@ -76,6 +76,10 @@ enum uavcan_node_mode {UAVCAN_NODE_MODE_OPERATIONAL,
 #define UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE                     0xa7b622f939d1a4d5
 #define UAVCAN_PARAM_GETSET_DATA_TYPE_ID                            11
 
+#define UAVCAN_DEBUG_LOG_MESSAGE_DATA_TYPE_ID                       16383
+#define UAVCAN_DEBUG_LOG_MESSAGE_DATA_TYPE_SIGNATURE                0xd654a48e0c049d75
+#define UAVCAN_DEBUG_LOG_MESSAGE_MESSAGE_SIZE                       ((983+7)/8)
+
 #define UNIQUE_ID_LENGTH_BYTES                                      12
 
 #endif /* UAVCAN_H_ */

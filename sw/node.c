@@ -837,6 +837,35 @@ void signalError(uint32_t code) {
   chMtxUnlock(&errorMtx);
 }
 
+/* This message unfortunately needs ~150 bytes of stack. Please be careful when using!
+ *
+ */
+void node_debug(uint8_t loglevel, const char *source, const char *msg)
+{
+  uint8_t buffer[UAVCAN_DEBUG_LOG_MESSAGE_MESSAGE_SIZE];
+  uint8_t source_len = strlen(source) & 31;
+  uint8_t msg_len = strlen(msg);
+  static uint8_t transfer_id;
+  if(msg_len > 90)
+  {
+    msg_len = 90;
+  }
+  /* Use manual mutex locking here to lock the global buffer as well */
+  chMtxLock(&canardMtx);
+  buffer[0] = (loglevel << 5) | source_len;
+  memcpy(&buffer[1], source, source_len);
+  memcpy(&buffer[1+source_len], msg, msg_len);
+  canardBroadcast(
+      &canard,
+      UAVCAN_DEBUG_LOG_MESSAGE_DATA_TYPE_SIGNATURE,
+      UAVCAN_DEBUG_LOG_MESSAGE_DATA_TYPE_ID,
+      &transfer_id,
+      CANARD_TRANSFER_PRIORITY_LOWEST,
+      buffer, 1 + source_len + msg_len
+      );
+  chMtxUnlock(&canardMtx);
+}
+
 
 void node_init(void)
 {
