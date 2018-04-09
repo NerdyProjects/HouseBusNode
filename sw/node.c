@@ -21,6 +21,7 @@
 #include "conduction_sensor.h"
 #include "pump_control.h"
 #include "eventcount.h"
+#include "sml.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -798,7 +799,7 @@ static THD_FUNCTION(FastTasksThread, arg)
 {
   (void) arg;
   chRegSetThreadName("FastTasks");
-  while(!node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
+  while(node_getMode() != UAVCAN_NODE_MODE_OPERATIONAL)
   {
     chThdSleepS(5);
   }

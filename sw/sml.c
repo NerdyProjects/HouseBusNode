@@ -43,19 +43,19 @@ uint8_t sml_is_present(void)
 uint8_t *sml_tick(void)
 {
   static uint8_t message_state = 0;
-  static uint8_t buffer_idx = 0;
+  static uint8_t buffer_idx = 7;
   static uint8_t buffer[8];
 
   msg_t msg;
-  while((msg = sdGetTimeout(port, TIME_IMMEDIATE)) != MSG_TIMEOUT);
+  while((msg = sdGetTimeout(port, TIME_IMMEDIATE)) != MSG_TIMEOUT)
   {
     if(message_state == sizeof(prefix))
     {
       buffer[buffer_idx] = msg;
-      buffer_idx++;
-      if(buffer_idx == 8)
+      buffer_idx--;
+      if(buffer_idx > 7)
       {
-        buffer_idx = 0;
+        buffer_idx = 7;
         message_state = 0;
         return buffer;
       }
@@ -67,5 +67,6 @@ uint8_t *sml_tick(void)
       message_state = 0;
     }
   }
+  return NULL;
 }
 
