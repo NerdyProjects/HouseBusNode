@@ -83,6 +83,7 @@ int main(void)
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
   wdgReset(&WDGD1);
   node_setMode(UAVCAN_NODE_MODE_OPERATIONAL);
+  node_debug(LOG_LEVEL_INFO, "MAIN", "node up and running :-)");
   /*
    * Normal main() thread activity, in this demo it does nothing except
    * sleeping in a loop and check the button state.
