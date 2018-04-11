@@ -75,6 +75,7 @@ void sml_tick(void)
   static uint8_t value[8];
   static uint8_t obis[3];
   static uint8_t state_buf;
+  static uint8_t sign;
   static uint8_t unit;
 
   msg_t msg;
@@ -140,30 +141,13 @@ void sml_tick(void)
     case ST_VALUE:
       if(substate == 0)
       {
-        state_buf = msg & 0x0F;
-        if((msg & 0xF0) == 6)
+        state_buf = msg & 0x0F; /* SML value length including TL byte */
+        sign = ((msg & 0xF0) == 0x50); /* data type is signed */
+        if((msg & 0xF0) != 0x60 && (msg & 0xF0) != 0x50)
         {
-          value[0] = 0;
-          value[1] = 0;
-          value[2] = 0;
-          value[3] = 0;
-          value[4] = 0;
-          value[5] = 0;
-          value[6] = 0;
-          value[7] = 0;
-        } else if((msg & 0xF0) == 5)
-        {
-          value[0] = 0xFF;
-          value[1] = 0xFF;
-          value[2] = 0xFF;
-          value[3] = 0xFF;
-          value[4] = 0xFF;
-          value[5] = 0xFF;
-          value[6] = 0xFF;
-          value[7] = 0xFF;
-        } else
-        {
-          node_debug(LOG_LEVEL_ERROR, "SML", "Unknown type identifier, neither UINT/INT");
+          /* neither INT nor UINT -> discard */
+          state = ST_SEARCH_PREFIX;
+          substate = 0;
         }
         if(state_buf > 9)
         {
@@ -173,12 +157,21 @@ void sml_tick(void)
       }
       else
       {
-        /* endianness conversion and extension to 64 bit */
+        /* Proper placement in 64 bit LE int */
         value[state_buf - 1 - substate] = msg;
       }
       substate++;
       if(substate >= state_buf)
       {
+        uint8_t ext = ((value[state_buf - 2 - substate] & 0x80) && sign) ? 0xFF : 0x00;
+        while(state_buf < 9)
+        {
+          /* state_buf is 9 for 64bit, otherwise we need to to proper sign extension/zero fill now.
+           * ex.: 5 for 32 bit -> need to fill 4,5,6,7
+           */
+          value[state_buf - 1] = ext;
+          state_buf++;
+        }
         broadcast_meter(obis, unit, value);
         state = ST_SEARCH_PREFIX;
         substate = 0;
