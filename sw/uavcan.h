@@ -57,7 +57,7 @@ enum uavcan_node_mode {UAVCAN_NODE_MODE_OPERATIONAL,
 #define HOMEAUTOMATION_METER_DATA_MESSAGE_SIZE                      ((64+7)/8)
 
 #define HOMEAUTOMATION_OBIS_DATA_TYPE_ID                           20005UL
-#define HOMEAUTOMATION_OBIS_DATA_TYPE_SIGNATURE                    0x95ed2cbf378e7947
+#define HOMEAUTOMATION_OBIS_DATA_TYPE_SIGNATURE                    0x27cc893032270a92
 #define HOMEAUTOMATION_OBIS_DATA_MESSAGE_SIZE                      ((96+7)/8)
 
 #define UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID                   40

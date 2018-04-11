@@ -141,18 +141,40 @@ void sml_tick(void)
       if(substate == 0)
       {
         state_buf = msg & 0x0F;
-        value[0] = 0;
-        value[1] = 0;
-        value[2] = 0;
-        value[3] = 0;
-        value[4] = 0;
-        value[5] = 0;
-        value[6] = 0;
-        value[7] = 0;
+        if((msg & 0xF0) == 6)
+        {
+          value[0] = 0;
+          value[1] = 0;
+          value[2] = 0;
+          value[3] = 0;
+          value[4] = 0;
+          value[5] = 0;
+          value[6] = 0;
+          value[7] = 0;
+        } else if((msg & 0xF0) == 5)
+        {
+          value[0] = 0xFF;
+          value[1] = 0xFF;
+          value[2] = 0xFF;
+          value[3] = 0xFF;
+          value[4] = 0xFF;
+          value[5] = 0xFF;
+          value[6] = 0xFF;
+          value[7] = 0xFF;
+        } else
+        {
+          node_debug(LOG_LEVEL_ERROR, "SML", "Unknown type identifier, neither UINT/INT");
+        }
+        if(state_buf > 9)
+        {
+          state = ST_SEARCH_PREFIX;
+          substate = 0;
+        }
       }
       else
       {
-        value[8 - substate] = msg;
+        /* endianness conversion and extension to 64 bit */
+        value[state_buf - 1 - substate] = msg;
       }
       substate++;
       if(substate >= state_buf)
