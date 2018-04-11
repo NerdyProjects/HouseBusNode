@@ -141,6 +141,14 @@ void sml_tick(void)
       if(substate == 0)
       {
         state_buf = msg & 0x0F;
+        value[0] = 0;
+        value[1] = 0;
+        value[2] = 0;
+        value[3] = 0;
+        value[4] = 0;
+        value[5] = 0;
+        value[6] = 0;
+        value[7] = 0;
       }
       else
       {
