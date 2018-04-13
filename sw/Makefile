@@ -141,12 +141,14 @@ else
 CSRC += bme280_node.c \
         drivers/bme280.c \
         drivers/analog.c \
+        drivers/pwm.c \
         conduction_sensor.c \
         pump_control.c \
         eventcount.c \
         sml.c \
         dimmer.c \
-        pump_receiver.c
+        pump_receiver.c \
+        light.c
 endif
 
 

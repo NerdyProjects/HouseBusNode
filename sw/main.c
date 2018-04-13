@@ -30,6 +30,7 @@
 #include "eventcount.h"
 #include "sml.h"
 #include "util.h"
+#include "light.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -84,6 +85,7 @@ int main(void)
   bme280_node_init();
   wdgReset(&WDGD1);
   sml_init();
+  light_init();
 #endif
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
   wdgReset(&WDGD1);
