@@ -20,6 +20,7 @@
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
 #include "pump_control.h"
+#include "dimmer.h"
 #include "eventcount.h"
 #include "sml.h"
 #ifdef BOOTLOADER
@@ -633,6 +634,10 @@ static void process1HzTasks(uint64_t timestamp_usec)
       uint8_t valid = eventcount_get_count(eventcounts);
       broadcast_eventcounts(eventcounts, valid);
     }
+    if(dimmer_is_present())
+    {
+      dimmer_read_config();
+    }
   }
 
 #endif
@@ -801,6 +806,10 @@ static THD_FUNCTION(FastTasksThread, arg)
     /* Executed every ~5ms. Can be used for key debouncing etc. */
     eventcount_acquire();
     sml_tick();
+    if(dimmer_is_present())
+    {
+      dimmer_tick();
+    }
     nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + MS2ST(5));
   }
 }

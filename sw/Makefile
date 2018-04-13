@@ -10,7 +10,7 @@ endif
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
-  USE_COPT = 
+  USE_COPT =
 endif
 
 # C++ specific options here (added to USE_OPT).
@@ -110,7 +110,7 @@ ifeq ($(BOOTLOADER),1)
 else
   LDSCRIPT= ld/STM32F072xB_app.ld
 endif
-	
+
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -133,7 +133,7 @@ CSRC = $(STARTUPSRC) \
        libcanard/canard.c \
        exception.c \
        bootloader_interface.c
-       
+
 ifeq ($(BOOTLOADER),1)
 CSRC += firmware_update.c \
 				bootloader.c
@@ -144,7 +144,8 @@ CSRC += bme280_node.c \
         conduction_sensor.c \
         pump_control.c \
         eventcount.c \
-        sml.c
+        sml.c \
+        dimmer.c
 endif
 
 

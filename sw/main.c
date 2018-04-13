@@ -24,9 +24,11 @@
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
 #include "pump_control.h"
+#include "dimmer.h"
 #include "uavcan.h"
 #include "eventcount.h"
 #include "sml.h"
+#include "util.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -75,6 +77,7 @@ int main(void)
   analog_init();
   conduction_init();
   pump_control_init();
+  dimmer_init();
   wdgReset(&WDGD1);
   bme280_node_init();
   wdgReset(&WDGD1);
