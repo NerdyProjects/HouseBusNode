@@ -143,14 +143,10 @@ void sml_tick(void)
       {
         state_buf = msg & 0x0F; /* SML value length including TL byte */
         sign = ((msg & 0xF0) == 0x50); /* data type is signed */
-        if((msg & 0xF0) != 0x60 && (msg & 0xF0) != 0x50)
+        if((((msg & 0xF0) != 0x60) && ((msg & 0xF0) != 0x50)) || state_buf > 9)
         {
           /* neither INT nor UINT -> discard */
-          state = ST_SEARCH_PREFIX;
-          substate = 0;
-        }
-        if(state_buf > 9)
-        {
+          /* longer than 64 it -> discard */
           state = ST_SEARCH_PREFIX;
           substate = 0;
         }
@@ -158,15 +154,22 @@ void sml_tick(void)
       else
       {
         /* Proper placement in 64 bit LE int */
+        /* SML sends 8/16/32/64 it big endian int.
+         * 8: write to value [0]
+         * 16: write to value [1], then [0]
+         * 64: write to value [7], ..., then [0]
+         * Sign extension happens later, except for 64 bit types.
+         * state_buf: byte width of SML type (+ 1), so 2/3/5/9
+         */
         value[state_buf - 1 - substate] = msg;
       }
       substate++;
       if(substate >= state_buf)
       {
-        uint8_t ext = ((value[state_buf - 2 - substate] & 0x80) && sign) ? 0xFF : 0x00;
+        uint8_t ext = ((value[state_buf - 2] & 0x80) && sign) ? 0xFF : 0x00;
         while(state_buf < 9)
         {
-          /* state_buf is 9 for 64bit, otherwise we need to to proper sign extension/zero fill now.
+          /* state_buf is 9 for 64bit, otherwise we need to to proper sign extend/zero fill now.
            * ex.: 5 for 32 bit -> need to fill 4,5,6,7
            */
           value[state_buf - 1] = ext;
@@ -176,6 +179,10 @@ void sml_tick(void)
         state = ST_SEARCH_PREFIX;
         substate = 0;
       }
+      break;
+    default:
+      node_debug(LOG_LEVEL_ERROR, "SML", "Switch default");
+      break;
     }
   }
 }
