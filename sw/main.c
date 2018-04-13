@@ -24,6 +24,7 @@
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
 #include "pump_control.h"
+#include "pump_receiver.h"
 #include "dimmer.h"
 #include "uavcan.h"
 #include "eventcount.h"
@@ -77,6 +78,7 @@ int main(void)
   analog_init();
   conduction_init();
   pump_control_init();
+  pump_receiver_init();
   dimmer_init();
   wdgReset(&WDGD1);
   bme280_node_init();

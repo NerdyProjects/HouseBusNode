@@ -20,6 +20,7 @@
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
 #include "pump_control.h"
+#include "pump_receiver.h"
 #include "dimmer.h"
 #include "eventcount.h"
 #include "sml.h"
@@ -399,6 +400,11 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     onParamGetSet(ins, transfer);
   }
+  if ((transfer->transfer_type == CanardTransferTypeRequest)
+        && (transfer->data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
+  {
+    on_conduction_sensor_data(transfer);
+  }
 #ifdef BOOTLOADER
   if ((transfer->transfer_type == CanardTransferTypeResponse)
       && (transfer->data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
@@ -448,6 +454,12 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
                 && (data_type_id == UAVCAN_PARAM_GETSET_DATA_TYPE_ID))
     {
       *out_data_type_signature = UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE;
+      return true;
+    }
+    if ((transfer_type == CanardTransferTypeRequest)
+            && (data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
+    {
+      *out_data_type_signature = HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_SIGNATURE;
       return true;
     }
 #ifdef BOOTLOADER
@@ -637,6 +649,10 @@ static void process1HzTasks(uint64_t timestamp_usec)
     if(dimmer_is_present())
     {
       dimmer_read_config();
+    }
+    if(pump_receiver_is_present())
+    {
+      pump_receiver_tick();
     }
   }
 

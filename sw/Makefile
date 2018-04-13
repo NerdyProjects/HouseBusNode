@@ -145,7 +145,8 @@ CSRC += bme280_node.c \
         pump_control.c \
         eventcount.c \
         sml.c \
-        dimmer.c
+        dimmer.c \
+        pump_receiver.c
 endif
 
 
