@@ -400,6 +400,7 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     onParamGetSet(ins, transfer);
   }
+#ifndef BOOTLOADER
   if ((transfer->transfer_type == CanardTransferTypeBroadcast)
         && (transfer->data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
   {
@@ -410,6 +411,7 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     on_time_data(transfer);
   }
+#endif
 #ifdef BOOTLOADER
   if ((transfer->transfer_type == CanardTransferTypeResponse)
       && (transfer->data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
