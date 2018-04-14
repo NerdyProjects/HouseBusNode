@@ -2,16 +2,13 @@
  * pump_receiver.c
  */
 
-#include <hal.h>
-#include <ch.h>
 #include "node.h"
-#include "drivers/analog.h"
 #include "config.h"
 
-#define PORT GPIOA
+#define PORT GPIOB
 #define TRANSFER_ERROR_MASK 0x1
 #define TRANSFER_TOP_CONDUCTION_SENSOR_MASK 0x128
-#define MAX_PUMP_ON_SECONDS 60*10
+#define MAX_PUMP_ON_SECONDS 60*5
 #define CHECK_PERIOD_SECONDS 60*60
 
 static uint8_t pin;
@@ -19,13 +16,14 @@ static uint8_t target_node;
 static volatile uint32_t time_since_last_data_seconds;
 static volatile uint32_t pump_on_seconds;
 static volatile uint32_t time_since_last_check_seconds;
+static volatile uint64_t time_usec;
 static volatile bool target_has_error;
 static volatile bool target_is_full;
 static volatile bool is_pump_on;
 
 bool pump_receiver_is_present(void)
 {
-  if (pin < 16 || target_node == 0xFF)
+  if (pin >= 16 || target_node == 0xFF)
   {
     return false;
   }
@@ -34,7 +32,7 @@ bool pump_receiver_is_present(void)
 
 static bool pump_receiver_is_up_to_date(void)
 {
-  return time_since_last_data_seconds < 10;
+  return time_since_last_data_seconds < 3;
 }
 
 static void turn_pump_on(void)
@@ -89,11 +87,13 @@ void pump_receiver_tick(void)
   {
     turn_pump_off();
   }
-
-  if (time_since_last_check_seconds > CHECK_PERIOD_SECONDS)
+  else if (time_since_last_check_seconds > CHECK_PERIOD_SECONDS)
   {
     time_since_last_check_seconds = 0;
-    if (!target_is_full)
+
+    // hour in UTC
+    uint8_t hour = (time_usec / (1000ULL*1000ULL*60ULL*60ULL)) % 24ULL;
+    if (hour > 5 && hour < 21 && !target_is_full)
     {
       turn_pump_on();
     }
@@ -123,4 +123,18 @@ void on_conduction_sensor_data(CanardRxTransfer* transfer)
   target_has_error = first_byte & TRANSFER_ERROR_MASK;
   target_is_full = first_byte & TRANSFER_TOP_CONDUCTION_SENSOR_MASK;
   time_since_last_data_seconds = 0;
+}
+
+void on_time_data(CanardRxTransfer* transfer)
+{
+  if(transfer->payload_len < 1) {
+    /* invalid payload */
+    return;
+  }
+  if (transfer->source_node_id != 100)
+  {
+    return;
+  }
+
+  canardDecodeScalar(transfer, 0, 56, 0, &time_usec);
 }

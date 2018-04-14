@@ -400,10 +400,15 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     onParamGetSet(ins, transfer);
   }
-  if ((transfer->transfer_type == CanardTransferTypeRequest)
+  if ((transfer->transfer_type == CanardTransferTypeBroadcast)
         && (transfer->data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
   {
     on_conduction_sensor_data(transfer);
+  }
+  if ((transfer->transfer_type == CanardTransferTypeBroadcast)
+        && (transfer->data_type_id == HOMEAUTOMATION_TIME_DATA_TYPE_ID))
+  {
+    on_time_data(transfer);
   }
 #ifdef BOOTLOADER
   if ((transfer->transfer_type == CanardTransferTypeResponse)
@@ -456,7 +461,13 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
       *out_data_type_signature = UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE;
       return true;
     }
-    if ((transfer_type == CanardTransferTypeRequest)
+    if ((transfer_type == CanardTransferTypeBroadcast)
+            && (data_type_id == HOMEAUTOMATION_TIME_DATA_TYPE_ID))
+    {
+      *out_data_type_signature = HOMEAUTOMATION_TIME_DATA_TYPE_SIGNATURE;
+      return true;
+    }
+    if ((transfer_type == CanardTransferTypeBroadcast)
             && (data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
     {
       *out_data_type_signature = HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_SIGNATURE;

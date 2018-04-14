@@ -122,6 +122,7 @@ CSRC = $(STARTUPSRC) \
        $(PLATFORMSRC) \
        $(TESTSRC) \
        $(CHIBIOS)/os/hal/lib/streams/chprintf.c \
+       $(CHIBIOS)/os/hal/lib/streams/memstreams.c \
        $(CHIBIOS)/os/various/syscalls.c \
        node.c \
        config.c \
