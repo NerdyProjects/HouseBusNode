@@ -14,9 +14,9 @@ void light_init(void)
   if(config_get_uint(CONFIG_HAS_LIGHT_CONTROL))
   {
     pwm_init();
-    for(int i = 1; i <= 8; ++i)
+    for(int i = 1; i <= 5; ++i)
     {
-      pwm_set_dc(i, 0xFF + 100*i);
+      pwm_set_dc(i, 150);
     }
   }
 }

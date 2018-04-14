@@ -70,6 +70,14 @@ void pwm_init(void)
   STM32_TIM15->BDTR  = STM32_TIM_BDTR_MOE;
   STM32_TIM15->CR1   = STM32_TIM_CR1_ARPE | STM32_TIM_CR1_URS |
                       STM32_TIM_CR1_CEN;
+  palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(0));
+  palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(0));
+  palSetPadMode(GPIOA, 4, PAL_MODE_ALTERNATE(4));
+  palSetPadMode(GPIOA, 6, PAL_MODE_ALTERNATE(1));
+  palSetPadMode(GPIOA, 7, PAL_MODE_ALTERNATE(1));
+  palSetPadMode(GPIOA, 8, PAL_MODE_ALTERNATE(2));
+  palSetPadMode(GPIOB, 0, PAL_MODE_ALTERNATE(1));
+  palSetPadMode(GPIOB, 1, PAL_MODE_ALTERNATE(1));
 }
 
 void pwm_set_dc(uint8_t channel, uint16_t dc)
