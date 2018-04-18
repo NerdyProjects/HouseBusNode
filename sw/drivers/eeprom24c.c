@@ -15,7 +15,7 @@
 #define I2C_ADDR 0x50
 #define EEPROM_CAPACITY 0x10000
 #define EEPROM_PAGE_SIZE 32
-#define EEPROM_WRITE_TIMEOUT MS2ST(10)
+#define EEPROM_WRITE_TIMEOUT TIME_MS2I(10)
 
 #define EEPROM_RETRY_COUNT 2
 
@@ -36,7 +36,7 @@ int eeprom_init(I2CDriver *i2c)
     {
       DEBUG("search EE @%x\n", address);
       i2cAcquireBus(i2cd);
-      msg_t result = i2cMasterReceiveTimeout(i2cd, address, &buf, 1, MS2ST(5));
+      msg_t result = i2cMasterReceiveTimeout(i2cd, address, &buf, 1, TIME_MS2I(5));
       i2cReleaseBus(i2cd);
       if(result == MSG_OK)
       {
@@ -70,7 +70,7 @@ int eeprom_read(uint16_t adr, uint8_t *out, uint16_t size)
     buffer[0] = adr >> 8;
     buffer[1] = adr & 0x0FF;
     i2cAcquireBus(i2cd);
-    result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, 2, out, size, MS2ST(10) + size * US2ST(500));
+    result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, 2, out, size, TIME_MS2I(10) + size * TIME_US2I(500));
     i2cReleaseBus(i2cd);
     if(result == MSG_TIMEOUT)
     {
@@ -92,7 +92,7 @@ static int eeprom_write_ack_poll(void)
   /* 10ms should be sufficient for a page write - we do not want to run into timeouts
    * and have enough time, so wait this time before trying something
    */
-  chThdSleep(MS2ST(10));
+  chThdSleep(TIME_MS2I(10));
   while(tries--)
   {
     uint8_t c;
@@ -134,7 +134,7 @@ int eeprom_write(uint16_t adr, uint8_t *in, uint16_t size)
     for(int try = 0; try < EEPROM_RETRY_COUNT; ++try)
     {
       i2cAcquireBus(i2cd);
-      result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, write_size + 2, NULL, 0, MS2ST(20));
+      result = i2cMasterTransmitTimeout(i2cd, eeprom_address, buffer, write_size + 2, NULL, 0, TIME_MS2I(20));
       i2cReleaseBus(i2cd);
       if(result == MSG_TIMEOUT)
       {

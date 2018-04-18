@@ -14,9 +14,9 @@ uint32_t __attribute__(( section (".vtors_ram"))) vector_table[47];
 extern volatile uint8_t FirmwareUpdate;
 
 /* by default, boot application after this timeout */
-#define BOOTLOADER_TIMEOUT S2ST(10)
+#define BOOTLOADER_TIMEOUT TIME_S2I(10)
 /* after a command has been received, use this timeout to boot application */
-#define BOOTLOADER_COMMAND_TIMEOUT S2ST(60)
+#define BOOTLOADER_COMMAND_TIMEOUT TIME_S2I(60)
 
 /* simple flag to pronlongue the bootloader timeout */
 volatile uint8_t command_executed = 0;
@@ -85,7 +85,7 @@ void bootloader_loop(void)
       command_executed = 0;
       boot_application_at =  chVTGetSystemTime() + BOOTLOADER_COMMAND_TIMEOUT;
     }
-    chThdSleep(MS2ST(500));
+    chThdSleep(TIME_MS2I(500));
   }
   boot_application();
 }

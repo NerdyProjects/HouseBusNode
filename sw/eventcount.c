@@ -43,7 +43,7 @@ void eventcount_init(void)
     {
       break;
     }
-    EventStableMinST[i] = MS2ST(v);
+    EventStableMinST[i] = TIME_MS2I(v);
     palSetPadMode(Eventport[i], Eventpin[i], PAL_MODE_INPUT_PULLUP);
     EventcountPorts++;
   }

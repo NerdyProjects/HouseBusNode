@@ -25,22 +25,22 @@ void i2c_init(void)
   palSetPad(GPIOB, GPIOB_I2C1_SDA);
   palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_OUTPUT_OPENDRAIN);
   palClearPad(GPIOB, GPIOB_I2C1_SCL);
-  chThdSleep(US2ST(5));
+  chThdSleep(TIME_US2I(5));
   DEBUG("Unlock I2C...");
   while(!palReadPad(GPIOB, GPIOB_I2C1_SDA))
   {
     palSetPad(GPIOB, GPIOB_I2C1_SCL);
-    chThdSleep(US2ST(5));
+    chThdSleep(TIME_US2I(5));
     palClearPad(GPIOB, GPIOB_I2C1_SCL);
-    chThdSleep(US2ST(5));
+    chThdSleep(TIME_US2I(5));
   }
   DEBUG(" .");
   /* STOP condition */
   palClearPad(GPIOB, GPIOB_I2C1_SDA);
   palSetPad(GPIOB, GPIOB_I2C1_SCL);
-  chThdSleep(US2ST(5));
+  chThdSleep(TIME_US2I(5));
   palSetPad(GPIOB, GPIOB_I2C1_SDA);
-  chThdSleep(US2ST(5));
+  chThdSleep(TIME_US2I(5));
   /* Send SCL cycles until SDA is high for 10 consecutive cycles */
   do {
     palSetPad(GPIOB, GPIOB_I2C1_SCL);
@@ -51,23 +51,23 @@ void i2c_init(void)
     {
       sda_high_cycles = 0;
     }
-    chThdSleep(US2ST(5));
+    chThdSleep(TIME_US2I(5));
     palClearPad(GPIOB, GPIOB_I2C1_SCL);
-    chThdSleep(US2ST(5));
+    chThdSleep(TIME_US2I(5));
   } while(sda_high_cycles < 10);
   DEBUG("\n");
   /* send a STOP condition afterwards */
   palClearPad(GPIOB, GPIOB_I2C1_SDA);
-  chThdSleep(US2ST(5));
+  chThdSleep(TIME_US2I(5));
   palSetPad(GPIOB, GPIOB_I2C1_SCL);
-  chThdSleep(US2ST(5));
+  chThdSleep(TIME_US2I(5));
   palSetPad(GPIOB, GPIOB_I2C1_SDA);
-  chThdSleep(US2ST(5));
+  chThdSleep(TIME_US2I(5));
   /* Start the I2C peripheral */
   palSetPadMode(GPIOB, GPIOB_I2C1_SCL, PAL_MODE_ALTERNATE(1));
   palSetPadMode(GPIOB, GPIOB_I2C1_SDA, PAL_MODE_ALTERNATE(1));
   i2cStart(&I2CD1, &i2cconfig);
   /* give I2C devices some time to recover from internal action */
-  chThdSleep(MS2ST(10));
+  chThdSleep(TIME_MS2I(10));
   i2cReleaseBus(&I2CD1);
 }

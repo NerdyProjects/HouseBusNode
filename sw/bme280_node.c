@@ -15,13 +15,13 @@
 #include "drivers/i2c.h"
 
 
-#define BME280_TIMEOUT MS2ST(50)
+#define BME280_TIMEOUT TIME_MS2I(50)
 
 static struct bme280_dev bme;
 static uint8_t bme_present = 0;
 
 void delay_ms(uint32_t period) {
-  chThdSleep(MS2ST(period));
+  chThdSleep(TIME_MS2I(period));
 
 }
 

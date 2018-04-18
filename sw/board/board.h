@@ -792,6 +792,14 @@
                                      PIN_AFIO_AF(GPIOF_PIN14, 0U) |         \
                                      PIN_AFIO_AF(GPIOF_PIN15, 0U))
 
-void boardInit(void);
+#if !defined(_FROM_ASM_)
+#ifdef __cplusplus
+extern "C" {
+#endif
+  void boardInit(void);
+#ifdef __cplusplus
+}
+#endif
+#endif /* _FROM_ASM_ */
 
 #endif /* BOARD_BOARD_H_ */

@@ -77,9 +77,9 @@ void conduction_acquire(void)
   /* first measure reference (open connection) */
   palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, passive_mode);
   palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, passive_mode);
-  chThdSleep(MS2ST(1));
+  chThdSleep(TIME_MS2I(1));
   analog_filter_reset(CONDUCTION_SENSOR_COMMON_ANALOG_CH);
-  chThdSleep(MS2ST(5));
+  chThdSleep(TIME_MS2I(5));
   ref = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
   checkReferenceLevel(ref, polarity);
 
@@ -93,9 +93,9 @@ void conduction_acquire(void)
   {
     palSetPad(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN);
   }
-  chThdSleep(MS2ST(1));
+  chThdSleep(TIME_MS2I(1));
   analog_filter_reset(CONDUCTION_SENSOR_COMMON_ANALOG_CH);
-  chThdSleep(MS2ST(5));
+  chThdSleep(TIME_MS2I(5));
   SensorRaw[0] = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
 
   /* then measure sensor 2 */
@@ -108,17 +108,17 @@ void conduction_acquire(void)
   {
     palSetPad(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN);
   }
-  chThdSleep(MS2ST(1));
+  chThdSleep(TIME_MS2I(1));
   analog_filter_reset(CONDUCTION_SENSOR_COMMON_ANALOG_CH);
-  chThdSleep(MS2ST(5));
+  chThdSleep(TIME_MS2I(5));
   SensorRaw[1] = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
 
   /* measure reference again to detect errors */
   palSetPadMode(CONDUCTION_SENSOR_2_PORT, CONDUCTION_SENSOR_2_PIN, passive_mode);
   palSetPadMode(CONDUCTION_SENSOR_1_PORT, CONDUCTION_SENSOR_1_PIN, passive_mode);
-  chThdSleep(MS2ST(1));
+  chThdSleep(TIME_MS2I(1));
   analog_filter_reset(CONDUCTION_SENSOR_COMMON_ANALOG_CH);
-  chThdSleep(MS2ST(5));
+  chThdSleep(TIME_MS2I(5));
   ref = adc_smp_filtered[CONDUCTION_SENSOR_COMMON_ANALOG_CH];
   checkReferenceLevel(ref, polarity);
 

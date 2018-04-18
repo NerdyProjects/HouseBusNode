@@ -44,7 +44,7 @@ static int evaluateCondition(uint32_t condition)
     res = conduction_evaluate(val, NULL);
     break;
   case CONDITION_RUNNING_TIME_S:
-    res = (pumpState && ((chVTGetSystemTime() - lastPumpStart) >= S2ST(val)));
+    res = (pumpState && ((chVTGetSystemTime() - lastPumpStart) >= TIME_S2I(val)));
     break;
   case CONDITION_TRUE:
     res = 1;
@@ -80,7 +80,7 @@ static THD_FUNCTION(PumpThread, arg)
   chRegSetThreadName("Pump");
   while(node_getMode() != UAVCAN_NODE_MODE_OPERATIONAL)
   {
-    chThdSleep(S2ST(5));
+    chThdSleep(TIME_S2I(5));
   }
   systime_t nextInvocation = chVTGetSystemTime();
   while (node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
@@ -99,7 +99,7 @@ static THD_FUNCTION(PumpThread, arg)
     {
       pumpStop();
     }
-    nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + MS2ST(500));
+    nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + TIME_MS2I(500));
   }
   pumpStop();
 }
@@ -120,21 +120,21 @@ uint8_t pump_get_state(uint32_t *stoppedForS, uint16_t *runningForS)
       if(stoppedForS)
       {
         /* running: stop time is time before pump was started */
-        *stoppedForS = ST2S(lastPumpStart - lastPumpStop);
+        *stoppedForS = TIME_I2S(lastPumpStart - lastPumpStop);
       }
       if(runningForS)
       { /* running: run time is time since pump was started */
-        *runningForS = ST2S(current - lastPumpStart);
+        *runningForS = TIME_I2S(current - lastPumpStart);
       }
     } else {
       if(stoppedForS)
       {
         /* stopped: stop time is time since pump was stopped */
-        *stoppedForS = ST2S(current - lastPumpStop);
+        *stoppedForS = TIME_I2S(current - lastPumpStop);
       }
       if(runningForS)
       { /* stopped: run time is time between start and stop */
-        *runningForS = ST2S(lastPumpStop   - lastPumpStart);
+        *runningForS = TIME_I2S(lastPumpStop   - lastPumpStart);
       }
     }
   } while(state != pumpState);

@@ -6,7 +6,7 @@
  */
 
 #include <hal.h>
-#include <ch.h>
+#include "ch.h"
 #include <canard.h>
 #include <string.h>
 #include "uavcan.h"
@@ -95,7 +95,7 @@ void requestNodeRestart(void)
 {
   if(NodeRestartAt == 0)
   {
-    NodeRestartAt = chVTGetSystemTime() + S2ST(1);
+    NodeRestartAt = chVTGetSystemTime() + TIME_S2I(1);
   }
 }
 
@@ -128,7 +128,7 @@ static void makeNodeStatusMessage(
     uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE])
 {
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
-  int uptime_sec = ST2S(chVTGetSystemTime());
+  int uptime_sec = TIME_I2S(chVTGetSystemTime());
   uint16_t vdda = 0;
 #ifdef BOOTLOADER
   node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
@@ -764,7 +764,7 @@ static THD_FUNCTION(CanNodeThread, arg)
       }
     }
 #endif
-    if (chVTTimeElapsedSinceX(lastInvocation) > S2ST(1))
+    if (chVTTimeElapsedSinceX(lastInvocation) > TIME_S2I(1))
     {
       systime_t currentTime = chVTGetSystemTime();
       process1HzTasks(getMonotonicTimestampUSec());
@@ -774,7 +774,7 @@ static THD_FUNCTION(CanNodeThread, arg)
         NVIC_SystemReset();
       }
     }
-    eventmask_t evts = chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(100));
+    eventmask_t evts = chEvtWaitAnyTimeout(ALL_EVENTS, TIME_MS2I(100));
     if((evts & (1 << CAN_EVT_TXC)) || (evts & (1 << CAN_EVT_TXR)))
     {
       processTx();
@@ -812,7 +812,7 @@ static THD_FUNCTION(CanRxThread, arg)
   chEvtRegister(&CAND1.rxfull_event, &rxc, CAN_EVT_RXC);
   while(1)
   {
-    eventmask_t evts = chEvtWaitAnyTimeout(ALL_EVENTS, MS2ST(100));
+    eventmask_t evts = chEvtWaitAnyTimeout(ALL_EVENTS, TIME_MS2I(100));
     if(evts & (1 << CAN_EVT_RXC))
     {
       processRx();
@@ -840,7 +840,7 @@ static THD_FUNCTION(FastTasksThread, arg)
     {
       dimmer_tick();
     }
-    nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + MS2ST(5));
+    nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + TIME_MS2I(5));
   }
 }
 #endif

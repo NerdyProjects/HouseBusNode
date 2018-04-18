@@ -4,6 +4,6 @@
 #include "node.h"
 
 void on_time_data(CanardRxTransfer* transfer);
-uint64_t time_data_hour();
+uint64_t time_data_hour(void);
 
 #endif /* TIME_DATA_H_ */

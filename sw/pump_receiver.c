@@ -10,7 +10,7 @@
 #define TRANSFER_ERROR_MASK 0x1
 #define TRANSFER_TOP_CONDUCTION_SENSOR_MASK 0x128
 #define MAX_PUMP_ON_SECONDS 60*5
-#define CHECK_PERIOD_SECONDS 60*60
+#define CHECK_PERIOD_SECONDS 60*120
 
 static uint8_t pin;
 static uint8_t target_node;
@@ -93,7 +93,7 @@ void pump_receiver_tick(void)
 
     // hour in UTC
     uint8_t hour = time_data_hour();
-    if (hour > 5 && hour < 21 && !target_is_full)
+    if (hour >= 5 && hour < 21 && !target_is_full)
     {
       turn_pump_on();
     }
