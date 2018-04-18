@@ -35,6 +35,8 @@ void dimmer_init(void)
 
   palClearPad(PORT, pin);
   palSetPadMode(PORT, pin, PAL_MODE_OUTPUT_PUSHPULL);
+
+  palSetPadMode(GPIOA, 7, PAL_MODE_INPUT_PULLUP);
 }
 
 void dimmer_read_config(void)
