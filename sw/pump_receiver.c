@@ -4,6 +4,7 @@
 
 #include "node.h"
 #include "config.h"
+#include "time_data.h"
 
 #define PORT GPIOB
 #define TRANSFER_ERROR_MASK 0x1
@@ -16,7 +17,6 @@ static uint8_t target_node;
 static volatile uint32_t time_since_last_data_seconds;
 static volatile uint32_t pump_on_seconds;
 static volatile uint32_t time_since_last_check_seconds;
-static volatile uint64_t time_usec;
 static volatile bool target_has_error;
 static volatile bool target_is_full;
 static volatile bool is_pump_on;
@@ -92,7 +92,7 @@ void pump_receiver_tick(void)
     time_since_last_check_seconds = 0;
 
     // hour in UTC
-    uint8_t hour = (time_usec / (1000ULL*1000ULL*60ULL*60ULL)) % 24ULL;
+    uint8_t hour = time_data_hour();
     if (hour > 5 && hour < 21 && !target_is_full)
     {
       turn_pump_on();
@@ -123,18 +123,4 @@ void on_conduction_sensor_data(CanardRxTransfer* transfer)
   target_has_error = first_byte & TRANSFER_ERROR_MASK;
   target_is_full = first_byte & TRANSFER_TOP_CONDUCTION_SENSOR_MASK;
   time_since_last_data_seconds = 0;
-}
-
-void on_time_data(CanardRxTransfer* transfer)
-{
-  if(transfer->payload_len < 1) {
-    /* invalid payload */
-    return;
-  }
-  if (transfer->source_node_id != 100)
-  {
-    return;
-  }
-
-  canardDecodeScalar(transfer, 0, 56, 0, &time_usec);
 }

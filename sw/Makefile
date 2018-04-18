@@ -149,7 +149,8 @@ CSRC += bme280_node.c \
         sml.c \
         dimmer.c \
         pump_receiver.c \
-        light.c
+        light.c \
+        time_data.c
 endif
 
 
