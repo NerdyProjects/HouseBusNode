@@ -26,18 +26,12 @@ static volatile uint32_t hallway_motion_sensor_on_seconds = 9999;
 
 static void motion_sensor_callback(void* arg)
 {
-  hallway_motion_sensor_on_seconds = 0;
-  for(int i = HALLWAY_START; i <= HALLWAY_END; ++i)
-  {
-    pwm_set_dc(i, 1500);
-  }
-
   if (palReadPad(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD) == PAL_HIGH)
   {
     hallway_motion_sensor_on_seconds = 0;
     for(int i = HALLWAY_START; i <= HALLWAY_END; ++i)
     {
-      pwm_set_dc(i, 1500);
+      pwm_set_dc(i, 0.7*65000);
     }
   }
 }
@@ -49,10 +43,10 @@ void light_init(void)
   pwm_init();
   for(int i = HALLWAY_START; i <= HALLWAY_END; ++i)
   {
-    pwm_set_dc(i, 150);
+    pwm_set_dc(i, 0.1*65000);
   }
-  pwm_set_dc(STAIRCASE_K20_1, 1500);
-  pwm_set_dc(STAIRCASE_K20_2, 40);
+  pwm_set_dc(STAIRCASE_K20_1, 0.1*65000);
+  pwm_set_dc(STAIRCASE_K20_2, 0.1*65000);
 
   palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT);
 
@@ -69,10 +63,6 @@ void light_tick(void)
 
   if(hallway_motion_sensor_on)
   {
-    for(int i = HALLWAY_START; i <= HALLWAY_END; ++i)
-    {
-      pwm_set_dc(i, 1500);
-    }
     hallway_motion_sensor_on_seconds++;
     return;
   }
@@ -86,20 +76,20 @@ void light_tick(void)
       // evening mode
       for(int i = HALLWAY_START; i <= HALLWAY_END; ++i)
       {
-        pwm_set_dc(i, 300);
+        pwm_set_dc(i, 0.1*65000);
       }
-      pwm_set_dc(STAIRCASE_K20_1, 1500);
-      pwm_set_dc(STAIRCASE_K20_2, 100);
+      pwm_set_dc(STAIRCASE_K20_1, 0.2*65000);
+      pwm_set_dc(STAIRCASE_K20_2, 0.05*65000);
     }
     else
     {
       // night mode
       for(int i = HALLWAY_START; i <= HALLWAY_END; ++i)
       {
-        pwm_set_dc(i, 100);
+        pwm_set_dc(i, 50);
       }
-      pwm_set_dc(STAIRCASE_K20_1, 100);
-      pwm_set_dc(STAIRCASE_K20_2, 40);
+      pwm_set_dc(STAIRCASE_K20_1, 300);
+      pwm_set_dc(STAIRCASE_K20_2, 50);
     }
   }
   else {

@@ -45,9 +45,13 @@ void pwm_init(void)
 
   /* TODO: APB Clock is assumed 48 MHz fixed, that gives us ~732 Hz PWM frequency without prescaler. Seems good :-) */
   STM32_TIM1->CCER = STM32_TIM_CCER_CC1E;
-  STM32_TIM3->CCER = STM32_TIM_CCER_CC1E | STM32_TIM_CCER_CC2E | STM32_TIM_CCER_CC3E | STM32_TIM_CCER_CC4E;
-  STM32_TIM14->CCER = STM32_TIM_CCER_CC1E;
-  STM32_TIM15->CCER = STM32_TIM_CCER_CC1E | STM32_TIM_CCER_CC2E;
+  STM32_TIM3->CCER = STM32_TIM_CCER_CC1E | STM32_TIM_CCER_CC1P | // inverted
+                     STM32_TIM_CCER_CC2E |
+                     STM32_TIM_CCER_CC3E | STM32_TIM_CCER_CC3P | // inverted
+                     STM32_TIM_CCER_CC4E;
+  STM32_TIM14->CCER = STM32_TIM_CCER_CC1E | STM32_TIM_CCER_CC1P; // inverted
+  STM32_TIM15->CCER = STM32_TIM_CCER_CC1E |
+                      STM32_TIM_CCER_CC2E | STM32_TIM_CCER_CC2P; // inverted
 
   STM32_TIM1->EGR   = STM32_TIM_EGR_UG;
   STM32_TIM1->SR    = 0;
@@ -61,15 +65,22 @@ void pwm_init(void)
   STM32_TIM1->BDTR  = STM32_TIM_BDTR_MOE;
   STM32_TIM1->CR1   = STM32_TIM_CR1_ARPE | STM32_TIM_CR1_URS |
                       STM32_TIM_CR1_CEN;
+
+  chThdSleep(TIME_US2I(250));
   STM32_TIM3->BDTR  = STM32_TIM_BDTR_MOE;
   STM32_TIM3->CR1   = STM32_TIM_CR1_ARPE | STM32_TIM_CR1_URS |
                       STM32_TIM_CR1_CEN;
+
+  chThdSleep(TIME_US2I(250));
   STM32_TIM14->BDTR  = STM32_TIM_BDTR_MOE;
   STM32_TIM14->CR1   = STM32_TIM_CR1_ARPE | STM32_TIM_CR1_URS |
                       STM32_TIM_CR1_CEN;
+
+  chThdSleep(TIME_US2I(250));
   STM32_TIM15->BDTR  = STM32_TIM_BDTR_MOE;
   STM32_TIM15->CR1   = STM32_TIM_CR1_ARPE | STM32_TIM_CR1_URS |
                       STM32_TIM_CR1_CEN;
+
   palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(0));
   palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(0));
   palSetPadMode(GPIOA, 4, PAL_MODE_ALTERNATE(4));
@@ -88,19 +99,19 @@ void pwm_set_dc(uint8_t channel, uint16_t dc)
     STM32_TIM15->CCR[0] = dc;
     break;
   case 2:
-    STM32_TIM15->CCR[1] = dc;
+    STM32_TIM15->CCR[1] = 0xFFFFFFFF - dc;
     break;
   case 3:
-    STM32_TIM14->CCR[0] = dc;
+    STM32_TIM14->CCR[0] = 0xFFFFFFFF - dc;
     break;
   case 4:
-    STM32_TIM3->CCR[0] = dc;
+    STM32_TIM3->CCR[0] = 0xFFFFFFFF - dc;
     break;
   case 5:
     STM32_TIM3->CCR[1] = dc;
     break;
   case 6:
-    STM32_TIM3->CCR[2] = dc;
+    STM32_TIM3->CCR[2] = 0xFFFFFFFF - dc;
     break;
   case 7:
     STM32_TIM3->CCR[3] = dc;
