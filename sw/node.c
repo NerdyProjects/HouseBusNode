@@ -24,6 +24,8 @@
 #include "dimmer.h"
 #include "eventcount.h"
 #include "sml.h"
+#include "light.h"
+#include "time_data.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -840,6 +842,7 @@ static THD_FUNCTION(FastTasksThread, arg)
     {
       dimmer_tick();
     }
+    light_fast_tick();
     nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + TIME_MS2I(5));
   }
 }
