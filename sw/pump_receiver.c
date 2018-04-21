@@ -92,7 +92,8 @@ void pump_receiver_tick(void)
     time_since_last_check_seconds = 0;
 
     // hour in UTC
-    uint8_t hour = time_data_hour();
+    uint8_t hour = time_hour;
+
     if (hour >= 5 && hour < 21 && !target_is_full)
     {
       turn_pump_on();

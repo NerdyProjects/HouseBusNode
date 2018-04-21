@@ -22,8 +22,18 @@
 #define HALLWAY_MOTION_SENSOR_PAD 4
 #define HALLWAY_MOTION_SENSOR_MAX_SECONDS 7
 
+#define ANIMATION_NONE 0
+#define ANIMATION_FADE 1
+
 static volatile uint32_t hallway_motion_sensor_trigger = 0;
-static uint32_t hallway_target_light = 0;
+
+typedef struct {
+  int animation;
+  int from;
+  int to;
+  int length;
+  int counter;
+} animation_state_t;
 
 static void motion_sensor_callback(void* arg)
 {
@@ -45,10 +55,10 @@ void light_init(void)
   pwm_set_dc(STAIRCASE_K20_1, 0.1*65000);
   pwm_set_dc(STAIRCASE_K20_2, 0.1*65000);
 
-  palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT_PULLUP);
-  pal_lld_enablepadevent(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_EVENT_MODE_RISING_EDGE);
+  palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT);
 
   chSysLock();
+  palEnablePadEventI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_EVENT_MODE_RISING_EDGE);
   palSetPadCallbackI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, motion_sensor_callback, NULL);
   chSysUnlock();
 }
@@ -67,81 +77,119 @@ int get_fade_val(int step, int fade_from, int fade_to, int length)
   return fade_from + ((diff * step) / length);
 }
 
-void light_fast_tick(void)
+int animate(uint16_t *brightness, uint8_t brightness_length, animation_state_t *state)
 {
-  static int hallway_animation;
-  static int hallway_animation_counter;
-  static int hallway_animation_tmp;
-  static int hallway_animation_target_light;
-  static int hallway_light;
-  static systime_t hallway_motion_sensor_on_time;
-  if(hallway_motion_sensor_trigger)
+  switch (state->animation)
   {
-    hallway_motion_sensor_trigger = 0;
-    hallway_motion_sensor_on_time = chVTGetSystemTime();
-    if(hallway_animation != 1)
-    {
-      hallway_animation = 1;
-      hallway_animation_counter = 0;
-      hallway_animation_tmp = hallway_light;
-      hallway_animation_target_light = 20000;
-    }
+    case(ANIMATION_FADE):
+      if (state->counter + (brightness_length - 1) * 30 >= state->length) return 0;
+
+      for(int i = 0; i < brightness_length; ++i)
+      {
+        brightness[i] = get_fade_val(state->counter - 30 * i, state->from, state->to, state->length);
+      }
+      state->counter++;
+      break;
   }
-  if(hallway_animation == 1)
-  {
-    hallway_light = get_fade_val(hallway_animation_counter, hallway_animation_tmp, hallway_animation_target_light, 150);
-    for(int i = 0; i <= (HALLWAY_END - HALLWAY_START); ++i)
-    {
-      pwm_set_dc(HALLWAY_START + i, get_fade_val(hallway_animation_counter - 30 * i, hallway_animation_tmp, hallway_animation_target_light, 150));
-    }
-    hallway_animation_counter++;
-    if(hallway_animation_counter > (150 + (HALLWAY_END-HALLWAY_START) * 30))
-    {
-      hallway_animation = 0;
-    }
-  } else
-  {
-    if(hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) < chVTGetSystemTime())
-    {
-      hallway_light = hallway_target_light;
-    } else
-    {
-      hallway_light = hallway_animation_target_light;
-    }
-    for(int i = 0; i <= (HALLWAY_END - HALLWAY_START); ++i)
-    {
-      pwm_set_dc(HALLWAY_START + i, hallway_light);
-    }
-  }
+
+  return 1;
 }
 
-void light_tick(void)
+void start_animation_fade(animation_state_t *state, int from, int to, int length)
 {
+  state->animation = ANIMATION_FADE;
+  state->counter = 0;
+  state->from = from;
+  state->to = to;
+  state->length = length;
+}
+
+void light_fast_tick(void)
+{
+  static int hallway_target_light = 0;
+  static int next_hallway_target_light = 0;
+  static int hallway_motion_sensor_target_light = 20000;
+  static int hallway_animation = ANIMATION_NONE;
+  static animation_state_t animation;
+
+  static systime_t hallway_motion_sensor_on_time;
+
   if(!config_get_uint(CONFIG_HAS_LIGHT_CONTROL)) return;
 
-  uint64_t hour = time_data_hour(); // UTC
+  uint8_t hour = time_hour; // UTC
 
   if(hour >= 18 || hour <= 3)
   {
     if(hour <= 21)
     {
       // evening mode
-      hallway_target_light = 2000;
+      next_hallway_target_light = 2000;
       pwm_set_dc(STAIRCASE_K20_1, 6000);
       pwm_set_dc(STAIRCASE_K20_2, 1500);
     }
     else
     {
       // night mode
-      hallway_target_light = 70;
+      next_hallway_target_light = 70;
       pwm_set_dc(STAIRCASE_K20_1, 350);
       pwm_set_dc(STAIRCASE_K20_2, 70);
     }
   }
   else {
     // day mode
-    hallway_target_light = 10;
+    next_hallway_target_light = 10;
     pwm_set_dc(STAIRCASE_K20_1, 10);
     pwm_set_dc(STAIRCASE_K20_2, 10);
+  }
+
+  // check if motion sensor was triggered
+  if(hallway_motion_sensor_trigger)
+  {
+    hallway_motion_sensor_trigger = 0;
+    hallway_motion_sensor_on_time = chVTGetSystemTime();
+  }
+
+  // override target brightness if motion sensor is on
+  if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) < chVTGetSystemTime())
+  {
+    next_hallway_target_light = hallway_motion_sensor_target_light;
+  }
+
+  // accept next_hallway_target_light, start animation if changed
+  if (next_hallway_target_light != hallway_target_light)
+  {
+    if(hallway_animation == ANIMATION_NONE)
+    {
+      start_animation_fade(&animation, hallway_target_light, next_hallway_target_light, 150);
+      hallway_animation = ANIMATION_FADE;
+    }
+    hallway_target_light = next_hallway_target_light;
+  }
+
+  if(hallway_animation != ANIMATION_NONE)
+  {
+    // animation in progress
+    uint8_t brightness_length = (HALLWAY_END - HALLWAY_START) + 1;
+    uint16_t brightness[brightness_length - 1];
+
+    if (animate(brightness, brightness_length, &animation))
+    {
+      for(int i = 0; i < brightness_length; ++i)
+      {
+        pwm_set_dc(HALLWAY_START + i, brightness[i]);
+      }
+    }
+    else {
+      // animation ends
+      hallway_animation = ANIMATION_NONE;
+    }
+  }
+  else
+  {
+    // constant brightness
+    for(int i = 0; i <= (HALLWAY_END - HALLWAY_START); ++i)
+    {
+      pwm_set_dc(HALLWAY_START + i, hallway_target_light);
+    }
   }
 }

@@ -669,7 +669,6 @@ static void process1HzTasks(uint64_t timestamp_usec)
     {
       pump_receiver_tick();
     }
-    light_tick();
   }
 
 #endif
