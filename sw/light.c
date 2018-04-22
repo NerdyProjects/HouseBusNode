@@ -21,7 +21,7 @@
 /* GPIOB 4 is motion sensor input, active high */
 #define HALLWAY_MOTION_SENSOR_PORT GPIOB
 #define HALLWAY_MOTION_SENSOR_PAD 4
-#define HALLWAY_MOTION_SENSOR_MAX_SECONDS 7
+#define HALLWAY_MOTION_SENSOR_MAX_SECONDS 30
 
 #define ANIMATION_NONE 0
 #define ANIMATION_FADE 1
@@ -105,6 +105,14 @@ void start_animation_fade(animation_state_t *state, int from, int to, int length
   state->length = length;
 }
 
+void reverse_animation_fade(animation_state_t *state)
+{
+  state->counter = state->length - state->counter;
+  int from_tmp = state->from;
+  state->from = state->to;
+  state->to = from_tmp;
+}
+
 void light_fast_tick(void)
 {
   static int hallway_target_light = 0;
@@ -125,6 +133,7 @@ void light_fast_tick(void)
     {
       // evening mode
       next_hallway_target_light = 2000;
+      hallway_motion_sensor_target_light = 20000;
       pwm_set_dc(STAIRCASE_K20_1, 6000);
       pwm_set_dc(STAIRCASE_K20_2, 1500);
     }
@@ -132,12 +141,14 @@ void light_fast_tick(void)
     {
       // night mode
       next_hallway_target_light = 70;
+      hallway_motion_sensor_target_light = 5000;
       pwm_set_dc(STAIRCASE_K20_1, 350);
-      pwm_set_dc(STAIRCASE_K20_2, 70);
+      pwm_set_dc(STAIRCASE_K20_2, 100);
     }
   }
   else {
     // day mode
+    hallway_motion_sensor_target_light = 10;
     next_hallway_target_light = 10;
     pwm_set_dc(STAIRCASE_K20_1, 10);
     pwm_set_dc(STAIRCASE_K20_2, 10);
@@ -148,7 +159,6 @@ void light_fast_tick(void)
   {
     hallway_motion_sensor_trigger = 0;
     hallway_motion_sensor_on_time = chVTGetSystemTime();
-    node_debug(LOG_LEVEL_INFO, "LIGHT", "Motion trigger");
   }
 
   // override target brightness if motion sensor is on
@@ -164,7 +174,10 @@ void light_fast_tick(void)
     {
       start_animation_fade(&animation, hallway_target_light, next_hallway_target_light, 300);
       hallway_animation = ANIMATION_FADE;
-      node_debug(LOG_LEVEL_INFO, "LIGHT", "start fade");
+    }
+    else if (hallway_animation == ANIMATION_FADE)
+    {
+      reverse_animation_fade(&animation);
     }
     hallway_target_light = next_hallway_target_light;
   }
@@ -183,7 +196,6 @@ void light_fast_tick(void)
     }
     else {
       // animation ends
-      node_debug(LOG_LEVEL_INFO, "LIGHT", "end animation");
       hallway_animation = ANIMATION_NONE;
     }
   }
