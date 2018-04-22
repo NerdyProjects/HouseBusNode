@@ -13,6 +13,7 @@
 /* Hallway light beginning from door .. backyard */
 #define HALLWAY_START 1
 #define HALLWAY_END 5
+#define HALLWAY_LIGHTS (HALLWAY_END - HALLWAY_START + 1)
 
 #define STAIRCASE_K20_1 6
 #define STAIRCASE_K20_2 7
@@ -82,11 +83,11 @@ int animate(uint16_t *brightness, uint8_t brightness_length, animation_state_t *
   switch (state->animation)
   {
     case(ANIMATION_FADE):
-      if (state->counter + (brightness_length - 1) * 30 >= state->length) return 0;
+      if (state->counter >= state->length) return 0;
 
       for(int i = 0; i < brightness_length; ++i)
       {
-        brightness[i] = get_fade_val(state->counter - 30 * i, state->from, state->to, state->length);
+        brightness[i] = get_fade_val(state->counter - 30 * i, state->from, state->to, state->length - (brightness_length * 30));
       }
       state->counter++;
       break;
@@ -107,12 +108,12 @@ void start_animation_fade(animation_state_t *state, int from, int to, int length
 void light_fast_tick(void)
 {
   static int hallway_target_light = 0;
-  static int next_hallway_target_light = 0;
   static int hallway_motion_sensor_target_light = 20000;
   static int hallway_animation = ANIMATION_NONE;
   static animation_state_t animation;
-
   static systime_t hallway_motion_sensor_on_time;
+
+  int next_hallway_target_light = 0;
 
   if(!config_get_uint(CONFIG_HAS_LIGHT_CONTROL)) return;
 
@@ -147,10 +148,11 @@ void light_fast_tick(void)
   {
     hallway_motion_sensor_trigger = 0;
     hallway_motion_sensor_on_time = chVTGetSystemTime();
+    node_debug(LOG_LEVEL_INFO, "LIGHT", "Motion trigger");
   }
 
   // override target brightness if motion sensor is on
-  if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) < chVTGetSystemTime())
+  if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) > chVTGetSystemTime())
   {
     next_hallway_target_light = hallway_motion_sensor_target_light;
   }
@@ -160,8 +162,9 @@ void light_fast_tick(void)
   {
     if(hallway_animation == ANIMATION_NONE)
     {
-      start_animation_fade(&animation, hallway_target_light, next_hallway_target_light, 150);
+      start_animation_fade(&animation, hallway_target_light, next_hallway_target_light, 300);
       hallway_animation = ANIMATION_FADE;
+      node_debug(LOG_LEVEL_INFO, "LIGHT", "start fade");
     }
     hallway_target_light = next_hallway_target_light;
   }
@@ -169,18 +172,18 @@ void light_fast_tick(void)
   if(hallway_animation != ANIMATION_NONE)
   {
     // animation in progress
-    uint8_t brightness_length = (HALLWAY_END - HALLWAY_START) + 1;
-    uint16_t brightness[brightness_length - 1];
+    uint16_t brightness[HALLWAY_LIGHTS];
 
-    if (animate(brightness, brightness_length, &animation))
+    if (animate(brightness, HALLWAY_LIGHTS, &animation))
     {
-      for(int i = 0; i < brightness_length; ++i)
+      for(int i = 0; i < HALLWAY_LIGHTS; ++i)
       {
         pwm_set_dc(HALLWAY_START + i, brightness[i]);
       }
     }
     else {
       // animation ends
+      node_debug(LOG_LEVEL_INFO, "LIGHT", "end animation");
       hallway_animation = ANIMATION_NONE;
     }
   }
