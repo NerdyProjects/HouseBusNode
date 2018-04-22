@@ -115,13 +115,13 @@ void reverse_animation_fade(animation_state_t *state)
 
 void light_fast_tick(void)
 {
-  static int hallway_target_light = 0;
-  static int hallway_motion_sensor_target_light = 20000;
+  static int hallway_brightness = 0;
+  static int hallway_motion_sensor_brightness = 20000;
   static int hallway_animation = ANIMATION_NONE;
   static animation_state_t animation;
   static systime_t hallway_motion_sensor_on_time;
 
-  int next_hallway_target_light = 0;
+  int next_hallway_brightness = 0;
 
   if(!config_get_uint(CONFIG_HAS_LIGHT_CONTROL)) return;
 
@@ -132,24 +132,24 @@ void light_fast_tick(void)
     if(hour <= 21)
     {
       // evening mode
-      next_hallway_target_light = 2000;
-      hallway_motion_sensor_target_light = 20000;
+      next_hallway_brightness = 2000;
+      hallway_motion_sensor_brightness = 20000;
       pwm_set_dc(STAIRCASE_K20_1, 6000);
       pwm_set_dc(STAIRCASE_K20_2, 1500);
     }
     else
     {
       // night mode
-      next_hallway_target_light = 70;
-      hallway_motion_sensor_target_light = 5000;
+      next_hallway_brightness = 70;
+      hallway_motion_sensor_brightness = 5000;
       pwm_set_dc(STAIRCASE_K20_1, 350);
       pwm_set_dc(STAIRCASE_K20_2, 100);
     }
   }
   else {
     // day mode
-    hallway_motion_sensor_target_light = 10;
-    next_hallway_target_light = 10;
+    hallway_motion_sensor_brightness = 10;
+    next_hallway_brightness = 10;
     pwm_set_dc(STAIRCASE_K20_1, 10);
     pwm_set_dc(STAIRCASE_K20_2, 10);
   }
@@ -164,22 +164,22 @@ void light_fast_tick(void)
   // override target brightness if motion sensor is on
   if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) > chVTGetSystemTime())
   {
-    next_hallway_target_light = hallway_motion_sensor_target_light;
+    next_hallway_brightness = hallway_motion_sensor_brightness;
   }
 
-  // accept next_hallway_target_light, start animation if changed
-  if (next_hallway_target_light != hallway_target_light)
+  // accept next_hallway_brightness, start animation if changed
+  if (next_hallway_brightness != hallway_brightness)
   {
     if(hallway_animation == ANIMATION_NONE)
     {
-      start_animation_fade(&animation, hallway_target_light, next_hallway_target_light, 300);
+      start_animation_fade(&animation, hallway_brightness, next_hallway_brightness, 300);
       hallway_animation = ANIMATION_FADE;
     }
     else if (hallway_animation == ANIMATION_FADE)
     {
       reverse_animation_fade(&animation);
     }
-    hallway_target_light = next_hallway_target_light;
+    hallway_brightness = next_hallway_brightness;
   }
 
   if(hallway_animation != ANIMATION_NONE)
@@ -204,7 +204,7 @@ void light_fast_tick(void)
     // constant brightness
     for(int i = 0; i <= (HALLWAY_END - HALLWAY_START); ++i)
     {
-      pwm_set_dc(HALLWAY_START + i, hallway_target_light);
+      pwm_set_dc(HALLWAY_START + i, hallway_brightness);
     }
   }
 }
