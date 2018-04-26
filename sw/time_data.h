@@ -5,5 +5,6 @@
 
 void on_time_data(CanardRxTransfer* transfer);
 extern volatile uint8_t time_hour;
+extern volatile uint8_t time_minute;
 
 #endif /* TIME_DATA_H_ */

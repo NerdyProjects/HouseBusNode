@@ -8,15 +8,13 @@
 
 #define PORT GPIOB
 #define TRANSFER_ERROR_MASK 0x1
-#define TRANSFER_TOP_CONDUCTION_SENSOR_MASK 0x128
+#define TRANSFER_TOP_CONDUCTION_SENSOR_MASK 0x80
 #define MAX_PUMP_ON_SECONDS 60*5
-#define CHECK_PERIOD_SECONDS 60*120
 
 static uint8_t pin;
 static uint8_t target_node;
 static volatile uint32_t time_since_last_data_seconds;
 static volatile uint32_t pump_on_seconds;
-static volatile uint32_t time_since_last_check_seconds;
 static volatile bool target_has_error;
 static volatile bool target_is_full;
 static volatile bool is_pump_on;
@@ -74,7 +72,6 @@ void pump_receiver_init(void)
 
   time_since_last_data_seconds = 99;
   pump_on_seconds = 0;
-  time_since_last_check_seconds = CHECK_PERIOD_SECONDS + 1;
   target_has_error = 0;
   target_is_full = 1;
   is_pump_on = 0;
@@ -82,22 +79,27 @@ void pump_receiver_init(void)
 
 void pump_receiver_tick(void)
 {
+  static uint8_t last_minute;
+
   // Turn-off conditions
   if (target_is_full || target_has_error || !pump_receiver_is_up_to_date() || (pump_on_seconds > MAX_PUMP_ON_SECONDS))
   {
     turn_pump_off();
   }
-  else if (time_since_last_check_seconds > CHECK_PERIOD_SECONDS)
+  else
   {
-    time_since_last_check_seconds = 0;
-
     // hour in UTC
     uint8_t hour = time_hour;
+    uint8_t minute = time_minute;
 
-    if (hour >= 5 && hour < 21 && !target_is_full)
+    bool is_hour_uneven = hour % 2;
+
+    if (!target_is_full && hour >= 5 && hour < 21 && is_hour_uneven && minute == 1 && last_minute != 1)
     {
       turn_pump_on();
     }
+
+    last_minute = minute;
   }
 
   if (is_pump_on)
@@ -106,7 +108,6 @@ void pump_receiver_tick(void)
   }
 
   time_since_last_data_seconds++;
-  time_since_last_check_seconds++;
 }
 
 void on_conduction_sensor_data(CanardRxTransfer* transfer)

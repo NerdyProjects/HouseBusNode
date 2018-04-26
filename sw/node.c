@@ -19,7 +19,7 @@
 #include "config.h"
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
-#include "pump_control.h"
+#include "water_refill.h"
 #include "pump_receiver.h"
 #include "dimmer.h"
 #include "eventcount.h"
@@ -558,18 +558,18 @@ static void broadcast_eventcounts(uint32_t *eventcounts, uint8_t cnt)
 }
 
 
-static void broadcast_pump_state(uint8_t state, uint32_t stoppedFor, uint16_t runningFor)
+static void broadcast_water_refill_state(uint8_t state, uint32_t stoppedFor, uint16_t runningFor)
 {
-  uint8_t buffer[HOMEAUTOMATION_PUMP_STATE_MESSAGE_SIZE];
+  uint8_t buffer[HOMEAUTOMATION_WATER_REFILL_STATE_MESSAGE_SIZE];
   static uint8_t transfer_id = 0;
   /* bit0: Error in data */
   buffer[0] = state;
   canardEncodeScalar(buffer, 8, 32, &stoppedFor);
   canardEncodeScalar(buffer, 40, 16, &runningFor);
   canardLockBroadcast(&canard,
-          HOMEAUTOMATION_PUMP_STATE_DATA_TYPE_SIGNATURE,
-          HOMEAUTOMATION_PUMP_STATE_DATA_TYPE_ID, &transfer_id,
-          CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_PUMP_STATE_MESSAGE_SIZE);
+          HOMEAUTOMATION_WATER_REFILL_STATE_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_WATER_REFILL_STATE_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_WATER_REFILL_STATE_MESSAGE_SIZE);
 }
 
 /**
@@ -648,12 +648,12 @@ static void process1HzTasks(uint64_t timestamp_usec)
       }
       broadcast_conduction_data(error, state, num, q);
     }
-    if(pump_is_present())
+    if(water_refill_is_present())
     {
       uint32_t stoppedFor;
       uint16_t runningFor;
-      uint8_t state = pump_get_state(&stoppedFor, &runningFor);
-      broadcast_pump_state(state, stoppedFor, runningFor);
+      uint8_t state = water_refill_get_state(&stoppedFor, &runningFor);
+      broadcast_water_refill_state(state, stoppedFor, runningFor);
     }
     if(eventcount_is_present())
     {
@@ -669,6 +669,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
     {
       pump_receiver_tick();
     }
+    water_refill_tick();
   }
 
 #endif
