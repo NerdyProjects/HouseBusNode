@@ -81,6 +81,13 @@ void pump_receiver_tick(void)
 {
   static uint8_t last_minute;
 
+  // hour in UTC
+  uint8_t hour = time_hour;
+  uint8_t minute = time_minute;
+
+  bool minute_has_changed = last_minute != minute;
+  last_minute = minute;
+
   // Turn-off conditions
   if (target_is_full || target_has_error || !pump_receiver_is_up_to_date() || (pump_on_seconds > MAX_PUMP_ON_SECONDS))
   {
@@ -88,18 +95,12 @@ void pump_receiver_tick(void)
   }
   else
   {
-    // hour in UTC
-    uint8_t hour = time_hour;
-    uint8_t minute = time_minute;
-
     bool is_hour_uneven = hour % 2;
 
-    if (!target_is_full && hour >= 5 && hour < 21 && is_hour_uneven && minute == 1 && last_minute != 1)
+    if (!target_is_full && is_hour_uneven && minute_has_changed && minute == 1)
     {
       turn_pump_on();
     }
-
-    last_minute = minute;
   }
 
   if (is_pump_on)

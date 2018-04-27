@@ -66,6 +66,9 @@ void water_refill_tick(void)
   uint8_t hour = time_hour; // UTC
   uint8_t minute = time_minute;
 
+  bool minute_has_changed = last_minute != minute;
+  last_minute = minute;
+
   int is_full = conduction_evaluate(TOP_CONDUCTION_SENSOR_INDEX, NULL);
   if (is_water_refill_on) {
     bool timeout = chVTGetSystemTime() > last_water_refill_start + TIME_S2I(MAX_WATER_REFILL_SECONDS);
@@ -78,13 +81,11 @@ void water_refill_tick(void)
   {
     bool is_hour_uneven = hour % 2;
 
-    if (!is_full && hour >= 5 && hour < 21 && is_hour_uneven && minute == 10 && last_minute != 10)
+    if (!is_full && is_hour_uneven && minute_has_changed && minute == 11)
     {
       water_refill_start();
     }
   }
-
-  last_minute = minute;
 }
 
 /* retrieves the refill state and two status times:

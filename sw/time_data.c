@@ -17,8 +17,6 @@ void on_time_data(CanardRxTransfer* transfer)
 
   canardDecodeScalar(transfer, 0, 56, 0, &time_usec);
 
-  uint64_t minutes_and_above = time_usec / 1000ULL*1000ULL*60ULL;
-
-  time_minute = minutes_and_above % 60ULL;
-  time_hour = (minutes_and_above / 60ULL) % 24ULL;
+  time_minute = (time_usec / (1000ULL*1000ULL*60ULL)) % 60ULL;;
+  time_hour = (time_usec / (1000ULL*1000ULL*60ULL*60ULL)) % 24ULL;
 }
