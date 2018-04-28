@@ -87,7 +87,7 @@ int animate(uint16_t *brightness, uint8_t brightness_length, animation_state_t *
 
       for(int i = 0; i < brightness_length; ++i)
       {
-        brightness[i] = get_fade_val(state->counter - 30 * i, state->from, state->to, state->length - (brightness_length * 30));
+        brightness[i] = get_fade_val(state->counter - 100 * i, state->from, state->to, state->length - (brightness_length * 100));
       }
       state->counter++;
       break;
@@ -172,7 +172,7 @@ void light_fast_tick(void)
   {
     if(hallway_animation == ANIMATION_NONE)
     {
-      start_animation_fade(&animation, hallway_brightness, next_hallway_brightness, 300);
+      start_animation_fade(&animation, hallway_brightness, next_hallway_brightness, 600);
       hallway_animation = ANIMATION_FADE;
     }
     else if (hallway_animation == ANIMATION_FADE)
