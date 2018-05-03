@@ -24,11 +24,17 @@
 #define HALLWAY_MOTION_SENSOR_PAD 4
 #define HALLWAY_MOTION_SENSOR_MAX_SECONDS 30
 
+/* GPIOB 5 is manual switch input, pull up */
+#define HALLWAY_SWITCH_PORT GPIOB
+#define HALLWAY_SWITCH_PAD 5
+#define HALLWAY_SWITCH_MAX_SECONDS 120
+
 #define ANIMATION_NONE 0
 #define ANIMATION_FADE 1
 #define ANIMATION_PLAY 2
 
 static volatile uint32_t hallway_motion_sensor_trigger = 0;
+static volatile uint32_t hallway_switch_trigger = 0;
 
 typedef struct {
   int animation;
@@ -39,12 +45,14 @@ typedef struct {
   int lights_index[HALLWAY_LIGHTS];
 } animation_state_t;
 
-static void motion_sensor_callback(void* arg)
+static void hallway_motion_sensor_callback(void* arg)
 {
-  if (palReadPad(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD) == PAL_HIGH)
-  {
-    hallway_motion_sensor_trigger = 1;
-  }
+  hallway_motion_sensor_trigger = 1;
+}
+
+static void hallway_switch_callback(void* arg)
+{
+  hallway_switch_trigger = 1;
 }
 
 void light_init(void)
@@ -60,10 +68,13 @@ void light_init(void)
   pwm_set_dc(STAIRCASE_K20_2, 0.1*65000);
 
   palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT);
+  palSetPadMode(HALLWAY_SWITCH_PORT, HALLWAY_SWITCH_PAD, PAL_MODE_INPUT_PULLDOWN);
 
   chSysLock();
   palEnablePadEventI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_EVENT_MODE_RISING_EDGE);
-  palSetPadCallbackI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, motion_sensor_callback, NULL);
+  palSetPadCallbackI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, hallway_motion_sensor_callback, NULL);
+  palEnablePadEventI(HALLWAY_SWITCH_PORT, HALLWAY_SWITCH_PAD, PAL_EVENT_MODE_RISING_EDGE);
+  palSetPadCallbackI(HALLWAY_SWITCH_PORT, HALLWAY_SWITCH_PAD, hallway_switch_callback, NULL);
   chSysUnlock();
 }
 
@@ -182,6 +193,7 @@ void light_fast_tick(void)
   static int hallway_animation = ANIMATION_NONE;
   static animation_state_t animation;
   static systime_t hallway_motion_sensor_on_time;
+  static systime_t hallway_switch_on_time;
 
   int next_hallway_brightness = 0;
 
@@ -223,10 +235,27 @@ void light_fast_tick(void)
     hallway_motion_sensor_on_time = chVTGetSystemTime();
   }
 
+  if(hallway_switch_trigger)
+  {
+    hallway_switch_trigger = 0;
+    // switch off if already triggered
+    if (hallway_switch_on_time + TIME_S2I(HALLWAY_SWITCH_MAX_SECONDS) > chVTGetSystemTime())
+    {
+      hallway_switch_on_time -= TIME_S2I(HALLWAY_SWITCH_MAX_SECONDS);
+    }
+    hallway_switch_on_time = chVTGetSystemTime();
+  }
+
   // override target brightness if motion sensor is on
   if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) > chVTGetSystemTime())
   {
     next_hallway_brightness = hallway_motion_sensor_brightness;
+  }
+
+  // override target brightness if switch is on
+  if (hallway_switch_on_time + TIME_S2I(HALLWAY_SWITCH_MAX_SECONDS) > chVTGetSystemTime())
+  {
+    next_hallway_brightness = 40000;
   }
 
   // accept next_hallway_brightness, start animation if changed
