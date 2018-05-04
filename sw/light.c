@@ -52,7 +52,7 @@ static void hallway_motion_sensor_callback(void* arg)
 
 static void hallway_switch_callback(void* arg)
 {
-  hallway_switch_trigger = 1;
+  hallway_switch_trigger = 0; // disabled because it triggered eratically
 }
 
 void light_init(void)
