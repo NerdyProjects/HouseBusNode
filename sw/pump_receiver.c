@@ -5,19 +5,34 @@
 #include "node.h"
 #include "config.h"
 #include "time_data.h"
+#include "conduction_sensor.h"
 
-#define PORT GPIOB
-#define TRANSFER_ERROR_MASK 0x1
-#define TRANSFER_TOP_CONDUCTION_SENSOR_MASK 0x80
-#define MAX_PUMP_ON_SECONDS 60*5
+#define STATE_WAIT 0
+#define STATE_PUMP 1
+#define STATE_REFILL_START 2
+#define STATE_REFILL 3
+
+#define PUMP_PORT GPIOB
+#define MAX_PUMP_ON_SECONDS 60*3
+#define REFILL_START_SECONDS 30
+#define REFILL_MAX_SECONDS 60*3
+
+#define REFILL_PORT GPIOB
+#define REFILL_PAD 0
 
 static uint8_t pin;
 static uint8_t target_node;
-static volatile uint32_t time_since_last_data_seconds;
-static volatile uint32_t pump_on_seconds;
-static volatile bool target_has_error;
-static volatile bool target_is_full;
-static volatile bool is_pump_on;
+static volatile bool target_has_error = 1;
+static volatile bool target_is_full = 1;
+static volatile bool target_is_empty = 0;
+static volatile bool is_pump_on = 0;
+static volatile bool is_refill_on = 0;
+
+static volatile systime_t pump_on_time;
+static volatile systime_t refill_on_time;
+static volatile systime_t target_data_update_time;
+
+static int state = STATE_WAIT;
 
 bool pump_receiver_is_present(void)
 {
@@ -30,24 +45,39 @@ bool pump_receiver_is_present(void)
 
 static bool pump_receiver_is_up_to_date(void)
 {
-  return time_since_last_data_seconds < 3;
+  return target_data_update_time + TIME_S2I(3) > chVTGetSystemTime();
 }
 
 static void turn_pump_on(void)
 {
-  palSetPad(PORT, pin);
+  palSetPad(PUMP_PORT, pin);
   if (!is_pump_on)
   {
     is_pump_on = 1;
-    pump_on_seconds = 0;
+    pump_on_time = chVTGetSystemTime();
   }
 }
 
 static void turn_pump_off(void)
 {
-  palClearPad(PORT, pin);
+  palClearPad(PUMP_PORT, pin);
   is_pump_on = 0;
-  pump_on_seconds = 0;
+}
+
+static void water_refill_start(void)
+{
+  palSetPad(REFILL_PORT, REFILL_PAD);
+  if (!is_refill_on)
+  {
+    is_refill_on = 1;
+    refill_on_time = chVTGetSystemTime();
+  }
+}
+
+static void water_refill_stop(void)
+{
+  palClearPad(REFILL_PORT, REFILL_PAD);
+  is_refill_on = 0;
 }
 
 void pump_receiver_init(void)
@@ -67,48 +97,97 @@ void pump_receiver_init(void)
   }
   pin--;
 
-  palClearPad(PORT, pin);
-  palSetPadMode(PORT, pin, PAL_MODE_OUTPUT_PUSHPULL);
-
-  time_since_last_data_seconds = 99;
-  pump_on_seconds = 0;
-  target_has_error = 0;
-  target_is_full = 1;
-  is_pump_on = 0;
+  palClearPad(PUMP_PORT, pin);
+  palSetPadMode(PUMP_PORT, pin, PAL_MODE_OUTPUT_PUSHPULL);
 }
 
 void pump_receiver_tick(void)
 {
-  static uint8_t last_minute;
 
-  // hour in UTC
-  uint8_t hour = time_hour;
-  uint8_t minute = time_minute;
+  uint8_t fill_level;
+  int source_is_empty = !conduction_evaluate(0, &fill_level);
 
-  bool minute_has_changed = last_minute != minute;
-  last_minute = minute;
+  // state transitions
+  int next_state = state;
 
-  // Turn-off conditions
-  if (target_is_full || target_has_error || !pump_receiver_is_up_to_date() || (pump_on_seconds > MAX_PUMP_ON_SECONDS))
-  {
-    turn_pump_off();
-  }
-  else
-  {
-    bool is_hour_uneven = hour % 2;
-
-    if (!target_is_full && is_hour_uneven && minute_has_changed && minute == 1)
+  switch(state) {
+    case(STATE_WAIT):
     {
-      turn_pump_on();
+      if (target_is_empty) {
+        if (source_is_empty) {
+          next_state = STATE_REFILL_START;
+        } else {
+          next_state = STATE_PUMP;
+        }
+      }
+      break;
+    }
+    case(STATE_PUMP):
+    {
+      if (target_is_full || source_is_empty || pump_on_time + TIME_S2I(MAX_PUMP_ON_SECONDS) < chVTGetSystemTime()) {
+        next_state = STATE_WAIT;
+      }
+      break;
+    }
+    case(STATE_REFILL_START):
+    {
+      if (refill_on_time + TIME_S2I(REFILL_START_SECONDS) < chVTGetSystemTime()) {
+        next_state = STATE_REFILL;
+      }
+      break;
+    }
+    case(STATE_REFILL):
+    {
+      if (refill_on_time + TIME_S2I(REFILL_MAX_SECONDS) < chVTGetSystemTime()) {
+        next_state = STATE_PUMP;
+      }
+      break;
     }
   }
 
-  if (is_pump_on)
-  {
-    pump_on_seconds++;
+  // overrides
+  if (target_is_full || target_has_error || !pump_receiver_is_up_to_date()) {
+    next_state = STATE_WAIT;
   }
 
-  time_since_last_data_seconds++;
+  state = next_state;
+
+
+  // set outputs
+  switch(state) {
+    case(STATE_WAIT):
+    {
+      turn_pump_off();
+      water_refill_stop();
+      break;
+    }
+    case(STATE_PUMP):
+    {
+      turn_pump_on();
+      water_refill_stop();
+      break;
+    }
+    case(STATE_REFILL_START):
+    {
+      turn_pump_off();
+      water_refill_start();
+      break;
+    }
+    case(STATE_REFILL):
+    {
+      turn_pump_on();
+      water_refill_start();
+      break;
+    }
+  }
+
+  uint8_t buffer[HOMEAUTOMATION_GREYWATER_PUMP_STATUS_MESSAGE_SIZE];
+  static uint8_t transfer_id = 0;
+  canardEncodeScalar(buffer, 0, 8, &state);
+  canardLockBroadcast(&canard,
+          HOMEAUTOMATION_GREYWATER_PUMP_STATUS_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_GREYWATER_PUMP_STATUS_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_GREYWATER_PUMP_STATUS_MESSAGE_SIZE);
 }
 
 void on_conduction_sensor_data(CanardRxTransfer* transfer)
@@ -123,7 +202,10 @@ void on_conduction_sensor_data(CanardRxTransfer* transfer)
   }
 
   uint8_t first_byte = transfer->payload_head[0];
-  target_has_error = first_byte & TRANSFER_ERROR_MASK;
-  target_is_full = first_byte & TRANSFER_TOP_CONDUCTION_SENSOR_MASK;
-  time_since_last_data_seconds = 0;
+  canardDecodeScalar(transfer, 0, 1, NULL, &target_has_error);
+  canardDecodeScalar(transfer, 7, 1, NULL, &target_is_full);
+  bool target_is_not_empty;
+  canardDecodeScalar(transfer, 6, 1, NULL, &target_is_not_empty);
+  target_is_empty = !target_is_not_empty;
+  target_data_update_time = chVTGetSystemTime();
 }

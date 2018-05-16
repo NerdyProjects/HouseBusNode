@@ -11,8 +11,6 @@
 #include "canard.h"
 #include "uavcan.h"
 
-#define MODULE_WATER_REFILL 0x10000
-
 void node_init(void);
 void node_tx_request(void);
 void requestNodeRestart(void);

@@ -137,7 +137,6 @@ CSRC += bme280_node.c \
         drivers/analog.c \
         drivers/pwm.c \
         conduction_sensor.c \
-        water_refill.c \
         eventcount.c \
         sml.c \
         dimmer.c \

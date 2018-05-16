@@ -30,6 +30,12 @@ enum config_param_type {
 
 typedef enum config_param_type config_param_type_t;
 
+/* These can be removed, but it probably needs invalidating the config:
+  CONFIG_HAS_WATER_REFILL_OUTPUT_PIN
+  CONFIG_PUMP_TRIGGER_SOURCE
+  CONFIG_PUMP_STOP_CONDITION_1
+  CONFIG_PUMP_STOP_CONDITION_2
+*/
 #define CONFIG(X) \
   X(CONFIG_MAGIC, 4, CONFIG_PARAM_INT), \
   X(CONFIG_VERSION, 4, CONFIG_PARAM_INT), \

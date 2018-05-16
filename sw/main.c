@@ -23,7 +23,6 @@
 #include "config.h"
 #include "drivers/analog.h"
 #include "conduction_sensor.h"
-#include "water_refill.h"
 #include "pump_receiver.h"
 #include "dimmer.h"
 #include "uavcan.h"
@@ -78,7 +77,6 @@ int main(void)
   eventcount_init();
   analog_init();
   conduction_init();
-  water_refill_init();
   pump_receiver_init();
   dimmer_init();
   wdgReset(&WDGD1);
