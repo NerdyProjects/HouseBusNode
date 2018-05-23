@@ -9,13 +9,17 @@
 
 #define STATE_WAIT 0
 #define STATE_PUMP 1
-#define STATE_REFILL_START 2
-#define STATE_REFILL 3
+#define STATE_REFILL_ONLY 2
+#define STATE_REFILL_PUMP 3
 
 #define PUMP_PORT GPIOB
-#define MAX_PUMP_ON_SECONDS 60*3
-#define REFILL_START_SECONDS 30
-#define REFILL_MAX_SECONDS 60*3
+#define MAX_PUMP_ON_SECONDS 60
+
+#define REFILL_PUMP_PWM_PERIOD_SECONDS 60
+#define REFILL_PUMP_PWM_ON_SECONDS 25
+#define REFILL_MAX_PERIODS 3
+
+#define SOURCE_EMPTY_COOLDOWN_SECONDS 15
 
 #define REFILL_PORT GPIOB
 #define REFILL_PAD 0
@@ -104,8 +108,13 @@ void pump_receiver_init(void)
 void pump_receiver_tick(void)
 {
 
-  uint8_t fill_level;
-  int source_is_empty = !conduction_evaluate(0, &fill_level);
+  // IIR low pass filter with 1/8 o + 7/8 n
+  static uint8_t filtered_fill_level = 128;
+  static uint8_t current_fill_level;
+  conduction_evaluate(0, &current_fill_level);
+  filtered_fill_level = (7*filtered_fill_level + current_fill_level) / 8;
+
+  bool source_is_empty = filtered_fill_level < 175;
 
   // state transitions
   int next_state = state;
@@ -115,7 +124,7 @@ void pump_receiver_tick(void)
     {
       if (target_is_empty) {
         if (source_is_empty) {
-          next_state = STATE_REFILL_START;
+          next_state = STATE_REFILL_ONLY;
         } else {
           next_state = STATE_PUMP;
         }
@@ -129,17 +138,25 @@ void pump_receiver_tick(void)
       }
       break;
     }
-    case(STATE_REFILL_START):
+    case(STATE_REFILL_ONLY):
     {
-      if (refill_on_time + TIME_S2I(REFILL_START_SECONDS) < chVTGetSystemTime()) {
-        next_state = STATE_REFILL;
+      systime_t refill_period_time = (chVTGetSystemTime() - refill_on_time) % TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
+      if (!source_is_empty && refill_period_time > TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS - REFILL_PUMP_PWM_ON_SECONDS)) {
+        next_state = STATE_REFILL_PUMP;
       }
       break;
     }
-    case(STATE_REFILL):
+    case(STATE_REFILL_PUMP):
     {
-      if (refill_on_time + TIME_S2I(REFILL_MAX_SECONDS) < chVTGetSystemTime()) {
-        next_state = STATE_PUMP;
+      systime_t on_time = chVTGetSystemTime() - refill_on_time;
+      systime_t refill_period_time = on_time % TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
+      if (refill_period_time > REFILL_PUMP_PWM_PERIOD_SECONDS) {
+        systime_t refill_periods = on_time / TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
+        if (refill_periods > REFILL_MAX_PERIODS) {
+          next_state = STATE_WAIT;
+        } else {
+          next_state = STATE_REFILL_ONLY;
+        }
       }
       break;
     }
@@ -167,13 +184,13 @@ void pump_receiver_tick(void)
       water_refill_stop();
       break;
     }
-    case(STATE_REFILL_START):
+    case(STATE_REFILL_ONLY):
     {
       turn_pump_off();
       water_refill_start();
       break;
     }
-    case(STATE_REFILL):
+    case(STATE_REFILL_PUMP):
     {
       turn_pump_on();
       water_refill_start();
