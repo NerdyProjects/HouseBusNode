@@ -16,7 +16,7 @@
 #define MAX_PUMP_ON_SECONDS 60
 
 #define REFILL_PUMP_PWM_PERIOD_SECONDS 60
-#define REFILL_PUMP_PWM_ON_SECONDS 25
+#define REFILL_PUMP_PWM_ON_SECONDS 40
 #define REFILL_MAX_PERIODS 3
 
 #define SOURCE_EMPTY_COOLDOWN_SECONDS 15
@@ -107,14 +107,7 @@ void pump_receiver_init(void)
 
 void pump_receiver_tick(void)
 {
-
-  // IIR low pass filter with 1/8 o + 7/8 n
-  static uint8_t filtered_fill_level = 128;
-  static uint8_t current_fill_level;
-  conduction_evaluate(0, &current_fill_level);
-  filtered_fill_level = (7*filtered_fill_level + current_fill_level) / 8;
-
-  bool source_is_empty = filtered_fill_level < 175;
+  bool source_is_empty = !conduction_evaluate(0, NULL);
 
   // state transitions
   int next_state = state;
@@ -150,13 +143,17 @@ void pump_receiver_tick(void)
     {
       systime_t on_time = chVTGetSystemTime() - refill_on_time;
       systime_t refill_period_time = on_time % TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
-      if (refill_period_time > REFILL_PUMP_PWM_PERIOD_SECONDS) {
+      if (refill_period_time > TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS)) {
         systime_t refill_periods = on_time / TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
         if (refill_periods > REFILL_MAX_PERIODS) {
           next_state = STATE_WAIT;
         } else {
           next_state = STATE_REFILL_ONLY;
         }
+      }
+
+      if (source_is_empty) {
+        next_state = STATE_REFILL_ONLY;
       }
       break;
     }

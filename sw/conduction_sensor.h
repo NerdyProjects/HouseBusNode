@@ -11,7 +11,7 @@
 void conduction_init(void);
 void conduction_acquire(void);
 uint8_t conduction_getClearError(void);
-uint8_t conduction_evaluate(uint8_t sensor, uint8_t *quality);
+bool conduction_evaluate(uint8_t sensor, uint8_t *quality);
 uint8_t conduction_num_sensors(void);
 
 #endif /* CONDUCTION_SENSOR_H_ */

@@ -21,7 +21,7 @@
 #define CONDUCTION_SENSOR_COMMON_PIN GPIOB_DIN4
 #define CONDUCTION_SENSOR_COMMON_ANALOG_CH 9
 
-#define CONDUCTION_THRESHOLD 0.6f
+#define CONDUCTION_THRESHOLD 200
 
 #define CONDUCTION_MAX_SENSORS 2
 
@@ -139,7 +139,7 @@ uint8_t conduction_getClearError(void)
 }
 
 
-uint8_t conduction_evaluate(uint8_t sensor, uint8_t *quality)
+bool conduction_evaluate(uint8_t sensor, uint8_t *quality)
 {
   chMtxLock(&conductionSensorDataMtx);
   float raw = qfp_int2float(SensorRaw[sensor]);
@@ -148,12 +148,14 @@ uint8_t conduction_evaluate(uint8_t sensor, uint8_t *quality)
     v = qfp_fsub(1.0f, v);
   }
   chMtxUnlock(&conductionSensorDataMtx);
+
+  int q = qfp_float2int(qfp_fmul(255.0f, v));
   if(quality)
   {
-    *quality = qfp_float2int(qfp_fmul(255.0f, v));
+    *quality = q;
   }
 
-  return (qfp_fcmp(v, CONDUCTION_THRESHOLD) > 0);
+  return q > CONDUCTION_THRESHOLD;
 }
 
 uint8_t conduction_num_sensors(void)
