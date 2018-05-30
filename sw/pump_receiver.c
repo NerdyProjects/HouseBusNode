@@ -114,9 +114,9 @@ void pump_receiver_tick(void)
   filtered_fill_level = ((IIR_LENGTH-1)*filtered_fill_level + current_fill_level) / IIR_LENGTH;
 
   // hysteresis to prevent quick pump toggles
-  if (source_is_empty && filtered_fill_level > 245) {
+  if (source_is_empty && filtered_fill_level > 235) {
     source_is_empty = 0;
-  } else if (!source_is_empty && filtered_fill_level < 230) {
+  } else if (!source_is_empty && filtered_fill_level < 210) {
     source_is_empty = 1;
   }
 
