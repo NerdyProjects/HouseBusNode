@@ -102,7 +102,7 @@ void pump_receiver_init(void)
 void pump_receiver_tick(void)
 {
   // IIR low pass filter with 1/x o + (x-1)/x n
-  #define IIR_LENGTH 16
+  #define IIR_LENGTH 4
   static uint8_t filtered_fill_level = 0;
   static bool source_is_empty = 0;
 
@@ -114,9 +114,9 @@ void pump_receiver_tick(void)
   filtered_fill_level = ((IIR_LENGTH-1)*filtered_fill_level + current_fill_level) / IIR_LENGTH;
 
   // hysteresis to prevent quick pump toggles
-  if (source_is_empty && filtered_fill_level > 235) {
+  if (source_is_empty && filtered_fill_level > 238) {
     source_is_empty = 0;
-  } else if (!source_is_empty && filtered_fill_level < 210) {
+  } else if (!source_is_empty && filtered_fill_level < 233) {
     source_is_empty = 1;
   }
 
