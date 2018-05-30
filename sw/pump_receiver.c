@@ -15,12 +15,6 @@
 #define PUMP_PORT GPIOB
 #define MAX_PUMP_ON_SECONDS 60
 
-#define REFILL_PUMP_PWM_PERIOD_SECONDS 60
-#define REFILL_PUMP_PWM_ON_SECONDS 40
-#define REFILL_MAX_PERIODS 3
-
-#define SOURCE_EMPTY_COOLDOWN_SECONDS 15
-
 #define REFILL_PORT GPIOB
 #define REFILL_PAD 0
 
@@ -107,7 +101,24 @@ void pump_receiver_init(void)
 
 void pump_receiver_tick(void)
 {
-  bool source_is_empty = !conduction_evaluate(0, NULL);
+  // IIR low pass filter with 1/x o + (x-1)/x n
+  #define IIR_LENGTH 16
+  static uint8_t filtered_fill_level = 0;
+  static bool source_is_empty = 0;
+
+  uint8_t current_fill_level;
+  conduction_evaluate(0, &current_fill_level);
+  if (!filtered_fill_level) {
+    filtered_fill_level = current_fill_level;
+  }
+  filtered_fill_level = ((IIR_LENGTH-1)*filtered_fill_level + current_fill_level) / IIR_LENGTH;
+
+  // hysteresis to prevent quick pump toggles
+  if (source_is_empty && filtered_fill_level > 245) {
+    source_is_empty = 0;
+  } else if (!source_is_empty && filtered_fill_level < 230) {
+    source_is_empty = 1;
+  }
 
   // state transitions
   int next_state = state;
@@ -133,25 +144,13 @@ void pump_receiver_tick(void)
     }
     case(STATE_REFILL_ONLY):
     {
-      systime_t refill_period_time = (chVTGetSystemTime() - refill_on_time) % TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
-      if (!source_is_empty && refill_period_time > TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS - REFILL_PUMP_PWM_ON_SECONDS)) {
+      if (!source_is_empty) {
         next_state = STATE_REFILL_PUMP;
       }
       break;
     }
     case(STATE_REFILL_PUMP):
     {
-      systime_t on_time = chVTGetSystemTime() - refill_on_time;
-      systime_t refill_period_time = on_time % TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
-      if (refill_period_time > TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS)) {
-        systime_t refill_periods = on_time / TIME_S2I(REFILL_PUMP_PWM_PERIOD_SECONDS);
-        if (refill_periods > REFILL_MAX_PERIODS) {
-          next_state = STATE_WAIT;
-        } else {
-          next_state = STATE_REFILL_ONLY;
-        }
-      }
-
       if (source_is_empty) {
         next_state = STATE_REFILL_ONLY;
       }
