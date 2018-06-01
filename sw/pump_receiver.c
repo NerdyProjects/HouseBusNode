@@ -11,9 +11,12 @@
 #define STATE_PUMP 1
 #define STATE_REFILL_ONLY 2
 #define STATE_REFILL_PUMP 3
+#define STATE_ERROR 128
 
 #define PUMP_PORT GPIOB
 #define MAX_PUMP_ON_SECONDS 60
+#define MAX_REFILL_SECONDS 6*60
+#define SOURCE_EMPTY_PUMP_COOLDOWN_SECONDS 20
 
 #define REFILL_PORT GPIOB
 #define REFILL_PAD 0
@@ -29,6 +32,7 @@ static volatile bool is_refill_on = 0;
 static volatile systime_t pump_on_time;
 static volatile systime_t refill_on_time;
 static volatile systime_t target_data_update_time;
+static volatile systime_t last_empty_source_pump_stop;
 
 static int state = STATE_WAIT;
 
@@ -44,6 +48,11 @@ bool pump_receiver_is_present(void)
 static bool pump_receiver_is_up_to_date(void)
 {
   return target_data_update_time + TIME_S2I(3) > chVTGetSystemTime();
+}
+
+static bool pump_recently_stopped_because_source_was_empty(void)
+{
+  return last_empty_source_pump_stop + TIME_S2I(SOURCE_EMPTY_PUMP_COOLDOWN_SECONDS) > chVTGetSystemTime();
 }
 
 static void turn_pump_on(void)
@@ -114,9 +123,9 @@ void pump_receiver_tick(void)
   filtered_fill_level = ((IIR_LENGTH-1)*filtered_fill_level + current_fill_level) / IIR_LENGTH;
 
   // hysteresis to prevent quick pump toggles
-  if (source_is_empty && filtered_fill_level > 238) {
+  if (source_is_empty && filtered_fill_level > 210) {
     source_is_empty = 0;
-  } else if (!source_is_empty && filtered_fill_level < 233) {
+  } else if (!source_is_empty && filtered_fill_level < 205) {
     source_is_empty = 1;
   }
 
@@ -127,7 +136,7 @@ void pump_receiver_tick(void)
     case(STATE_WAIT):
     {
       if (target_is_empty) {
-        if (source_is_empty) {
+        if (source_is_empty || pump_recently_stopped_because_source_was_empty()) {
           next_state = STATE_REFILL_ONLY;
         } else {
           next_state = STATE_PUMP;
@@ -137,23 +146,41 @@ void pump_receiver_tick(void)
     }
     case(STATE_PUMP):
     {
-      if (target_is_full || source_is_empty || pump_on_time + TIME_S2I(MAX_PUMP_ON_SECONDS) < chVTGetSystemTime()) {
+      if (source_is_empty) {
+        last_empty_source_pump_stop = chVTGetSystemTime();
         next_state = STATE_WAIT;
+      }
+      else if (target_is_full) {
+        next_state = STATE_WAIT;
+      }
+      else if (pump_on_time + TIME_S2I(MAX_PUMP_ON_SECONDS) < chVTGetSystemTime()) {
+        next_state = STATE_ERROR;
       }
       break;
     }
     case(STATE_REFILL_ONLY):
     {
-      if (!source_is_empty) {
+      if (refill_on_time + TIME_S2I(MAX_REFILL_SECONDS) < chVTGetSystemTime()) {
+        next_state = STATE_ERROR;
+      }
+      else if (!source_is_empty && !pump_recently_stopped_because_source_was_empty()) {
         next_state = STATE_REFILL_PUMP;
       }
       break;
     }
     case(STATE_REFILL_PUMP):
     {
-      if (source_is_empty) {
+      if (refill_on_time + TIME_S2I(MAX_REFILL_SECONDS) < chVTGetSystemTime()) {
+        next_state = STATE_ERROR;
+      }
+      else if (source_is_empty) {
+        last_empty_source_pump_stop = chVTGetSystemTime();
         next_state = STATE_REFILL_ONLY;
       }
+      break;
+    }
+    case(STATE_ERROR):
+    {
       break;
     }
   }
@@ -190,6 +217,12 @@ void pump_receiver_tick(void)
     {
       turn_pump_on();
       water_refill_start();
+      break;
+    }
+    case(STATE_ERROR):
+    {
+      turn_pump_off();
+      water_refill_stop();
       break;
     }
   }
