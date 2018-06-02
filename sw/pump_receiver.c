@@ -14,8 +14,8 @@
 #define STATE_ERROR 128
 
 #define PUMP_PORT GPIOB
-#define MAX_PUMP_ON_SECONDS 60
-#define MAX_REFILL_SECONDS 6*60
+#define MAX_PUMP_ON_SECONDS 3*60
+#define MAX_REFILL_SECONDS 10*60
 #define SOURCE_EMPTY_PUMP_COOLDOWN_SECONDS 20
 
 #define REFILL_PORT GPIOB
@@ -114,13 +114,28 @@ void pump_receiver_tick(void)
   #define IIR_LENGTH 4
   static uint8_t filtered_fill_level = 0;
   static bool source_is_empty = 0;
+  static uint8_t filtered_variance = 0;
+  static uint8_t long_filtered_variance = 0;
 
   uint8_t current_fill_level;
   conduction_evaluate(0, &current_fill_level);
   if (!filtered_fill_level) {
     filtered_fill_level = current_fill_level;
   }
+
+  uint8_t variance;
+  if (current_fill_level < filtered_fill_level) {
+    variance = filtered_fill_level - current_fill_level;
+  } else {
+    variance = current_fill_level - filtered_fill_level;
+  }
   filtered_fill_level = ((IIR_LENGTH-1)*filtered_fill_level + current_fill_level) / IIR_LENGTH;
+  filtered_variance = (3*filtered_variance + variance) / 4;
+  long_filtered_variance = (15*long_filtered_variance + variance) / 16;
+
+  char dbgbuf[100];
+  chsnprintf(dbgbuf, 100, "fvar %d %d", filtered_variance, long_filtered_variance);
+  node_debug(LOG_LEVEL_DEBUG, "pump", dbgbuf);
 
   // hysteresis to prevent quick pump toggles
   if (source_is_empty && filtered_fill_level > 210) {
@@ -173,7 +188,7 @@ void pump_receiver_tick(void)
       if (refill_on_time + TIME_S2I(MAX_REFILL_SECONDS) < chVTGetSystemTime()) {
         next_state = STATE_ERROR;
       }
-      else if (source_is_empty) {
+      else if (source_is_empty || (filtered_variance > long_filtered_variance && filtered_variance - long_filtered_variance > 10)) {
         last_empty_source_pump_stop = chVTGetSystemTime();
         next_state = STATE_REFILL_ONLY;
       }
@@ -247,7 +262,6 @@ void on_conduction_sensor_data(CanardRxTransfer* transfer)
     return;
   }
 
-  uint8_t first_byte = transfer->payload_head[0];
   canardDecodeScalar(transfer, 0, 1, NULL, &target_has_error);
   canardDecodeScalar(transfer, 7, 1, NULL, &target_is_full);
   bool target_is_not_empty;
