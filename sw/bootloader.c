@@ -34,9 +34,9 @@ static void boot_application(void)
 {
   __disable_irq();
   /* first, disable all peripherals as we don't need anything anymore */
-  rccDisableAHB(~0x00000014, 0);
-  rccDisableAPB1(0xFFFFFFFF, 0);
-  rccDisableAPB2(0xFFFFFFFF, 0);
+  rccDisableAHB(~0x00000014);
+  rccDisableAPB1(0xFFFFFFFF);
+  rccDisableAPB2(0xFFFFFFFF);
   rccResetCAN1();
   rccResetI2C1();
   rccResetTIM2();
