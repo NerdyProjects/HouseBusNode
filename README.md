@@ -26,6 +26,12 @@ The communication between the nodes happen without any security layer: Every nod
 
 # Hardware description
 
+## PCB Errata
+
+## Mini-PCB
+
+* Triac T1/T2 (Pin 1/2) need to be exchanged. Easiest to be done by soldering Triac backwards just with Pin 1 and 2 and using a wire for Pin 3.
+
 ## Microcontroller
 
 The microcontroller in use is the STM32F072RBT6. It is powered by an ARM Cortex-M0 core with 128 kBytes of flash memory and 16 kBytes of SRAM data memory.
