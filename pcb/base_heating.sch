@@ -1,115 +1,6 @@
-EESchema Schematic File Version 2
-LIBS:ac-dc
-LIBS:adc-dac
-LIBS:Altera
-LIBS:analog_devices
-LIBS:analog_switches
-LIBS:atmel
-LIBS:audio
-LIBS:Battery_Management
-LIBS:bbd
-LIBS:Bosch
-LIBS:brooktre
-LIBS:Connector
-LIBS:contrib
-LIBS:cypress
-LIBS:dc-dc
-LIBS:device
-LIBS:digital-audio
-LIBS:Diode
-LIBS:Display
-LIBS:driver_gate
-LIBS:dsp
-LIBS:DSP_Microchip_DSPIC33
-LIBS:elec-unifil
-LIBS:ESD_Protection
-LIBS:Espressif
-LIBS:FPGA_Actel
-LIBS:ftdi
-LIBS:gennum
-LIBS:Graphic
-LIBS:hc11
-LIBS:infineon
-LIBS:intel
-LIBS:interface
-LIBS:intersil
-LIBS:ir
-LIBS:Lattice
-LIBS:LED
-LIBS:LEM
-LIBS:linear
-LIBS:Logic_74xgxx
-LIBS:Logic_74xx
-LIBS:Logic_CMOS_4000
-LIBS:Logic_CMOS_IEEE
-LIBS:logic_programmable
-LIBS:Logic_TTL_IEEE
-LIBS:maxim
-LIBS:MCU_Microchip_PIC10
-LIBS:MCU_Microchip_PIC12
-LIBS:MCU_Microchip_PIC16
-LIBS:MCU_Microchip_PIC18
-LIBS:MCU_Microchip_PIC24
-LIBS:MCU_Microchip_PIC32
-LIBS:MCU_NXP_Kinetis
-LIBS:MCU_NXP_LPC
-LIBS:MCU_NXP_S08
-LIBS:MCU_Parallax
-LIBS:MCU_ST_STM8
-LIBS:MCU_ST_STM32
-LIBS:MCU_Texas_MSP430
-LIBS:Mechanical
-LIBS:memory
-LIBS:microchip
-LIBS:microcontrollers
-LIBS:modules
-LIBS:Motor
-LIBS:motor_drivers
-LIBS:motorola
-LIBS:nordicsemi
-LIBS:nxp
-LIBS:onsemi
-LIBS:opto
-LIBS:Oscillators
-LIBS:philips
-LIBS:power
-LIBS:powerint
-LIBS:Power_Management
-LIBS:pspice
-LIBS:references
-LIBS:regul
-LIBS:Relay
-LIBS:rfcom
-LIBS:RFSolutions
-LIBS:Sensor_Current
-LIBS:sensors
-LIBS:silabs
-LIBS:siliconi
-LIBS:supertex
-LIBS:Switch
-LIBS:texas
-LIBS:Transformer
-LIBS:Transistor
-LIBS:triac_thyristor
-LIBS:Valve
-LIBS:video
-LIBS:wiznet
-LIBS:Worldsemi
-LIBS:Xicor
-LIBS:xilinx
-LIBS:zetex
-LIBS:Zilog
-LIBS:Symbols_DCDC-ACDC-Converter_RevC_20Jul2012
-LIBS:Symbols_EN60617_13Mar2013
-LIBS:Symbols_EN60617-10_HF-Radio_DRAFT_12Sep2013
-LIBS:Symbols_ICs-Diskrete_RevD10
-LIBS:Symbols_ICs-Opto_RevB_16Sep2013
-LIBS:Symbols_Microcontroller_Philips-NXP_RevA_06Oct2013
-LIBS:SymbolsSimilarEN60617+oldDIN617-RevE8
-LIBS:Symbols_Socket-DIN41612_RevA
-LIBS:Symbols_Transformer-Diskrete_RevA
+EESchema Schematic File Version 4
 LIBS:base_heating-cache
-EELAYER 25 0
+EELAYER 26 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -124,7 +15,7 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L Conn_01x20_Male J1
+L Connector:Conn_01x20_Male J1
 U 1 1 5A16C079
 P 650 1800
 F 0 "J1" H 650 2800 50  0000 C CNN
@@ -135,7 +26,7 @@ F 3 "" H 650 1800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Conn_01x20_Male J2
+L Connector:Conn_01x20_Male J2
 U 1 1 5A16C195
 P 650 4050
 F 0 "J2" H 650 5050 50  0000 C CNN
@@ -174,7 +65,7 @@ DOUT_K2_20A
 Text GLabel 850  2700 2    60   Output ~ 0
 DOUT_K1_FIRE
 $Comp
-L GND #PWR01
+L power:GND #PWR01
 U 1 1 5A173601
 P 1350 3150
 F 0 "#PWR01" H 1350 2900 50  0001 C CNN
@@ -189,7 +80,7 @@ VCC_18
 Text GLabel 850  4950 2    60   Input ~ 0
 VCC_18
 $Comp
-L GND #PWR02
+L power:GND #PWR02
 U 1 1 5A173669
 P 1300 5050
 F 0 "#PWR02" H 1300 4800 50  0001 C CNN
@@ -200,7 +91,7 @@ F 3 "" H 1300 5050 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L STM32F072C8Tx U4
+L base_heating-rescue:STM32F072C8Tx U4
 U 1 1 5A1739E2
 P 7200 2650
 F 0 "U4" H 3500 4475 50  0000 L BNN
@@ -211,7 +102,7 @@ F 3 "" H 7200 2650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R1
+L base_heating-rescue:R R1
 U 1 1 5A173B3B
 P 1050 700
 F 0 "R1" V 1130 700 50  0000 C CNN
@@ -222,7 +113,7 @@ F 3 "" H 1050 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R3
+L base_heating-rescue:R R3
 U 1 1 5A173B7C
 P 1250 700
 F 0 "R3" V 1330 700 50  0000 C CNN
@@ -233,7 +124,7 @@ F 3 "" H 1250 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R6
+L base_heating-rescue:R R6
 U 1 1 5A173BA5
 P 1450 700
 F 0 "R6" V 1530 700 50  0000 C CNN
@@ -244,7 +135,7 @@ F 3 "" H 1450 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R8
+L base_heating-rescue:R R8
 U 1 1 5A173BCD
 P 1650 700
 F 0 "R8" V 1730 700 50  0000 C CNN
@@ -255,7 +146,7 @@ F 3 "" H 1650 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R9
+L base_heating-rescue:R R9
 U 1 1 5A173C34
 P 1850 700
 F 0 "R9" V 1930 700 50  0000 C CNN
@@ -266,7 +157,7 @@ F 3 "" H 1850 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R11
+L base_heating-rescue:R R11
 U 1 1 5A173C5E
 P 2050 700
 F 0 "R11" V 2130 700 50  0000 C CNN
@@ -277,7 +168,7 @@ F 3 "" H 2050 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L NTR2101P Q1
+L base_heating-rescue:NTR2101P Q1
 U 1 1 5A173E07
 P 2750 800
 F 0 "Q1" H 2950 875 50  0000 L CNN
@@ -290,7 +181,7 @@ $EndComp
 Text GLabel 2750 1000 2    60   Input ~ 0
 /A_PU_ON
 $Comp
-L +3.3VA #PWR03
+L power:+3.3VA #PWR03
 U 1 1 5A173FBD
 P 2950 700
 F 0 "#PWR03" H 2950 550 50  0001 C CNN
@@ -301,7 +192,7 @@ F 3 "" H 2950 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C12
+L base_heating-rescue:C C12
 U 1 1 5A174571
 P 2050 1750
 F 0 "C12" H 2075 1850 50  0000 L CNN
@@ -312,7 +203,7 @@ F 3 "" H 2050 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C11
+L base_heating-rescue:C C11
 U 1 1 5A174665
 P 1850 1750
 F 0 "C11" H 1875 1850 50  0000 L CNN
@@ -323,7 +214,7 @@ F 3 "" H 1850 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C9
+L base_heating-rescue:C C9
 U 1 1 5A17469F
 P 1650 1750
 F 0 "C9" H 1675 1850 50  0000 L CNN
@@ -334,7 +225,7 @@ F 3 "" H 1650 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C7
+L base_heating-rescue:C C7
 U 1 1 5A1746DC
 P 1450 1750
 F 0 "C7" H 1475 1850 50  0000 L CNN
@@ -345,7 +236,7 @@ F 3 "" H 1450 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C5
+L base_heating-rescue:C C5
 U 1 1 5A174754
 P 1250 1750
 F 0 "C5" H 1275 1850 50  0000 L CNN
@@ -356,7 +247,7 @@ F 3 "" H 1250 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C3
+L base_heating-rescue:C C3
 U 1 1 5A17490F
 P 1050 1750
 F 0 "C3" H 1075 1850 50  0000 L CNN
@@ -367,7 +258,7 @@ F 3 "" H 1050 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR04
+L power:GND #PWR04
 U 1 1 5A174F6D
 P 2050 1950
 F 0 "#PWR04" H 2050 1700 50  0001 C CNN
@@ -378,7 +269,7 @@ F 3 "" H 2050 1950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R7
+L base_heating-rescue:R R7
 U 1 1 5A175482
 P 1550 1000
 F 0 "R7" V 1630 1000 50  0000 C CNN
@@ -389,7 +280,7 @@ F 3 "" H 1550 1000 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L C C13
+L base_heating-rescue:C C13
 U 1 1 5A175603
 P 2250 1750
 F 0 "C13" H 2275 1850 50  0000 L CNN
@@ -400,7 +291,7 @@ F 3 "" H 2250 1750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L AT24CS64-SSHM U3
+L base_heating-rescue:AT24CS64-SSHM U3
 U 1 1 5A175AE4
 P 6900 5100
 F 0 "U3" H 6700 5350 50  0000 C CNN
@@ -411,7 +302,7 @@ F 3 "" H 6900 5100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR05
+L power:GND #PWR05
 U 1 1 5A175CF5
 P 6900 5550
 F 0 "#PWR05" H 6900 5300 50  0001 C CNN
@@ -426,7 +317,7 @@ SDA
 Text GLabel 7350 5150 2    60   Input ~ 0
 SCL
 $Comp
-L +3V3 #PWR06
+L power:+3V3 #PWR06
 U 1 1 5A1760B2
 P 6900 4700
 F 0 "#PWR06" H 6900 4550 50  0001 C CNN
@@ -437,7 +328,7 @@ F 3 "" H 6900 4700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR07
+L power:+3V3 #PWR07
 U 1 1 5A1762E9
 P 6800 700
 F 0 "#PWR07" H 6800 550 50  0001 C CNN
@@ -448,7 +339,7 @@ F 3 "" H 6800 700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3VA #PWR08
+L power:+3.3VA #PWR08
 U 1 1 5A176501
 P 7200 650
 F 0 "#PWR08" H 7200 500 50  0001 C CNN
@@ -459,7 +350,7 @@ F 3 "" H 7200 650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3VA #PWR09
+L power:+3.3VA #PWR09
 U 1 1 5A1768DA
 P 2250 6050
 F 0 "#PWR09" H 2250 5900 50  0001 C CNN
@@ -470,7 +361,7 @@ F 3 "" H 2250 6050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR010
+L power:+3V3 #PWR010
 U 1 1 5A176914
 P 1750 6050
 F 0 "#PWR010" H 1750 5900 50  0001 C CNN
@@ -481,7 +372,7 @@ F 3 "" H 1750 6050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R10
+L base_heating-rescue:R R10
 U 1 1 5A176ABF
 P 2000 6050
 F 0 "R10" V 2080 6050 50  0000 C CNN
@@ -492,7 +383,7 @@ F 3 "" H 2000 6050 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L GND #PWR011
+L power:GND #PWR011
 U 1 1 5A176D54
 P 2250 6450
 F 0 "#PWR011" H 2250 6200 50  0001 C CNN
@@ -503,7 +394,7 @@ F 3 "" H 2250 6450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C14
+L base_heating-rescue:C C14
 U 1 1 5A176E37
 P 2250 6250
 F 0 "C14" H 2275 6350 50  0000 L CNN
@@ -514,7 +405,7 @@ F 3 "" H 2250 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C10
+L base_heating-rescue:C C10
 U 1 1 5A177272
 P 1750 6250
 F 0 "C10" H 1775 6350 50  0000 L CNN
@@ -525,7 +416,7 @@ F 3 "" H 1750 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L SN65HVD230 U2
+L base_heating-rescue:SN65HVD230 U2
 U 1 1 5A17775C
 P 5300 4900
 F 0 "U2" H 5200 5300 50  0000 R CNN
@@ -536,7 +427,7 @@ F 3 "" H 5200 5300 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR012
+L power:+3V3 #PWR012
 U 1 1 5A17788B
 P 5300 4550
 F 0 "#PWR012" H 5300 4400 50  0001 C CNN
@@ -547,7 +438,7 @@ F 3 "" H 5300 4550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR013
+L power:GND #PWR013
 U 1 1 5A177922
 P 5300 5400
 F 0 "#PWR013" H 5300 5150 50  0001 C CNN
@@ -562,7 +453,7 @@ CANH
 Text GLabel 5750 5000 2    60   BiDi ~ 0
 CANL
 $Comp
-L R R21
+L base_heating-rescue:R R21
 U 1 1 5A177BAB
 P 4850 5300
 F 0 "R21" V 4930 5300 50  0000 C CNN
@@ -573,7 +464,7 @@ F 3 "" H 4850 5300 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L D_TVS_x2_AAC D3
+L base_heating-rescue:D_TVS_x2_AAC D3
 U 1 1 5A177E3E
 P 5850 7300
 F 0 "D3" H 5850 7475 50  0000 C CNN
@@ -584,7 +475,7 @@ F 3 "" H 5700 7300 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L Screw_Terminal_01x04 J12
+L Connector:Screw_Terminal_01x04 J12
 U 1 1 5A17806A
 P 6650 6850
 F 0 "J12" H 6650 7050 50  0000 C CNN
@@ -595,7 +486,7 @@ F 3 "" H 6650 6850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Screw_Terminal_01x04 J13
+L Connector:Screw_Terminal_01x04 J13
 U 1 1 5A17824B
 P 6650 7450
 F 0 "J13" H 6650 7650 50  0000 C CNN
@@ -610,7 +501,7 @@ CANH
 Text GLabel 5800 7650 0    60   BiDi ~ 0
 CANL
 $Comp
-L +24V #PWR014
+L power:+24V #PWR014
 U 1 1 5A1788C3
 P 6350 6650
 F 0 "#PWR014" H 6350 6500 50  0001 C CNN
@@ -621,7 +512,7 @@ F 3 "" H 6350 6650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR015
+L power:GND #PWR015
 U 1 1 5A1790CE
 P 6100 7350
 F 0 "#PWR015" H 6100 7100 50  0001 C CNN
@@ -636,7 +527,7 @@ CAND
 Text GLabel 4850 4900 0    60   BiDi ~ 0
 CANR
 $Comp
-L C C8
+L base_heating-rescue:C C8
 U 1 1 5A17A44F
 P 1550 6250
 F 0 "C8" H 1575 6350 50  0000 L CNN
@@ -657,7 +548,7 @@ SWDIO
 Text GLabel 11050 3950 2    60   BiDi ~ 0
 SWDCLK
 $Comp
-L R R16
+L base_heating-rescue:R R16
 U 1 1 5A17BF2D
 P 3350 1050
 F 0 "R16" V 3430 1050 50  0000 C CNN
@@ -668,7 +559,7 @@ F 3 "" H 3350 1050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR016
+L power:+3V3 #PWR016
 U 1 1 5A17C003
 P 3350 800
 F 0 "#PWR016" H 3350 650 50  0001 C CNN
@@ -679,7 +570,7 @@ F 3 "" H 3350 800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR017
+L power:+3V3 #PWR017
 U 1 1 5A17C582
 P 3200 1300
 F 0 "#PWR017" H 3200 1150 50  0001 C CNN
@@ -690,7 +581,7 @@ F 3 "" H 3200 1300 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR018
+L power:GND #PWR018
 U 1 1 5A17C65E
 P 3200 1550
 F 0 "#PWR018" H 3200 1300 50  0001 C CNN
@@ -701,7 +592,7 @@ F 3 "" H 3200 1550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR019
+L power:GND #PWR019
 U 1 1 5A17C91F
 P 7200 4550
 F 0 "#PWR019" H 7200 4300 50  0001 C CNN
@@ -712,7 +603,7 @@ F 3 "" H 7200 4550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MOC3061M U5
+L base_heating-rescue:MOC3061M U5
 U 1 1 5A17DA7A
 P 8900 4650
 F 0 "U5" H 8700 4850 50  0000 L CNN
@@ -723,7 +614,7 @@ F 3 "" H 8865 4650 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L BT136-800 Q6
+L base_heating-rescue:BT136-800 Q6
 U 1 1 5A17DB49
 P 9600 4750
 F 0 "Q6" H 9800 4825 50  0000 L CNN
@@ -734,7 +625,7 @@ F 3 "" H 9600 4750 50  0000 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R22
+L base_heating-rescue:R R22
 U 1 1 5A17DCEE
 P 8350 4550
 F 0 "R22" V 8430 4550 50  0000 C CNN
@@ -745,7 +636,7 @@ F 3 "" H 8350 4550 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L R R25
+L base_heating-rescue:R R25
 U 1 1 5A17DE60
 P 9400 4550
 F 0 "R25" V 9480 4550 50  0000 C CNN
@@ -756,7 +647,7 @@ F 3 "" H 9400 4550 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L R R24
+L base_heating-rescue:R R24
 U 1 1 5A17DF05
 P 9250 4900
 F 0 "R24" V 9330 4900 50  0000 C CNN
@@ -767,7 +658,7 @@ F 3 "" H 9250 4900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R26
+L base_heating-rescue:R R26
 U 1 1 5A17DF9F
 P 10150 4800
 F 0 "R26" V 10230 4800 50  0000 C CNN
@@ -778,7 +669,7 @@ F 3 "" H 10150 4800 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L C C17
+L base_heating-rescue:C C17
 U 1 1 5A17E1E7
 P 9900 4900
 F 0 "C17" H 9925 5000 50  0000 L CNN
@@ -789,7 +680,7 @@ F 3 "" H 9900 4900 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R27
+L base_heating-rescue:R R27
 U 1 1 5A17E7E0
 P 10350 4800
 F 0 "R27" V 10430 4800 50  0000 C CNN
@@ -800,7 +691,7 @@ F 3 "" H 10350 4800 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L GND #PWR020
+L power:GND #PWR020
 U 1 1 5A17FB74
 P 8600 4800
 F 0 "#PWR020" H 8600 4550 50  0001 C CNN
@@ -815,7 +706,7 @@ ACSW_1
 Text GLabel 7850 5850 1    60   BiDi ~ 0
 ODSW_1
 $Comp
-L IRF540N Q4
+L base_heating-rescue:IRF540N Q4
 U 1 1 5A18060F
 P 8050 5850
 F 0 "Q4" H 8300 5925 50  0000 L CNN
@@ -826,7 +717,7 @@ F 3 "" H 8050 5850 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR021
+L power:GND #PWR021
 U 1 1 5A1806B0
 P 8300 6050
 F 0 "#PWR021" H 8300 5800 50  0001 C CNN
@@ -837,7 +728,7 @@ F 3 "" H 8300 6050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Screw_Terminal_01x04 J16
+L Connector:Screw_Terminal_01x04 J16
 U 1 1 5A181399
 P 10750 5050
 F 0 "J16" H 10750 5250 50  0000 C CNN
@@ -848,7 +739,7 @@ F 3 "" H 10750 5050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MOC3061M U6
+L base_heating-rescue:MOC3061M U6
 U 1 1 5A181B38
 P 8900 5300
 F 0 "U6" H 8700 5500 50  0000 L CNN
@@ -859,7 +750,7 @@ F 3 "" H 8865 5300 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R23
+L base_heating-rescue:R R23
 U 1 1 5A181C18
 P 8400 5200
 F 0 "R23" V 8480 5200 50  0000 C CNN
@@ -872,7 +763,7 @@ $EndComp
 Text GLabel 8150 5200 0    60   BiDi ~ 0
 ACSW_2
 $Comp
-L GND #PWR022
+L power:GND #PWR022
 U 1 1 5A181EE1
 P 8550 5400
 F 0 "#PWR022" H 8550 5150 50  0001 C CNN
@@ -885,7 +776,7 @@ $EndComp
 Text GLabel 9000 6200 1    60   BiDi ~ 0
 ODSW_2
 $Comp
-L GND #PWR023
+L power:GND #PWR023
 U 1 1 5A182CFF
 P 9200 6400
 F 0 "#PWR023" H 9200 6150 50  0001 C CNN
@@ -896,7 +787,7 @@ F 3 "" H 9200 6400 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Screw_Terminal_01x04 J15
+L Connector:Screw_Terminal_01x04 J15
 U 1 1 5A183505
 P 10200 5850
 F 0 "J15" H 10200 6050 50  0000 C CNN
@@ -907,7 +798,7 @@ F 3 "" H 10200 5850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR024
+L power:GND #PWR024
 U 1 1 5A1838B4
 P 9950 6300
 F 0 "#PWR024" H 9950 6050 50  0001 C CNN
@@ -918,7 +809,7 @@ F 3 "" H 9950 6300 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Conn_01x03 J7
+L base_heating-rescue:Conn_01x03 J7
 U 1 1 5A18456A
 P 4400 7450
 F 0 "J7" H 4400 7650 50  0000 C CNN
@@ -933,7 +824,7 @@ SWDCLK
 Text GLabel 4050 7350 0    60   BiDi ~ 0
 SWDIO
 $Comp
-L GND #PWR025
+L power:GND #PWR025
 U 1 1 5A185221
 P 4050 7550
 F 0 "#PWR025" H 4050 7300 50  0001 C CNN
@@ -944,7 +835,7 @@ F 3 "" H 4050 7550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L MAX3078E U1
+L base_heating-rescue:MAX3078E U1
 U 1 1 5A18591A
 P 3450 5050
 F 0 "U1" H 3150 5400 50  0000 L CNN
@@ -955,7 +846,7 @@ F 3 "" H 3450 5050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR026
+L power:+3V3 #PWR026
 U 1 1 5A186841
 P 3450 4550
 F 0 "#PWR026" H 3450 4400 50  0001 C CNN
@@ -966,7 +857,7 @@ F 3 "" H 3450 4550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR027
+L power:GND #PWR027
 U 1 1 5A1869BE
 P 3450 5550
 F 0 "#PWR027" H 3450 5300 50  0001 C CNN
@@ -983,7 +874,7 @@ RS422TX
 Text GLabel 2950 5150 0    60   BiDi ~ 0
 RS422DE
 $Comp
-L GND #PWR028
+L power:GND #PWR028
 U 1 1 5A188D51
 P 8850 5950
 F 0 "#PWR028" H 8850 5700 50  0001 C CNN
@@ -994,7 +885,7 @@ F 3 "" H 8850 5950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L D_Zener D4
+L base_heating-rescue:D_Zener D4
 U 1 1 5A189299
 P 8750 5800
 F 0 "D4" H 8750 5900 50  0000 C CNN
@@ -1005,7 +896,7 @@ F 3 "" H 8750 5800 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L D_Zener D5
+L base_heating-rescue:D_Zener D5
 U 1 1 5A18939B
 P 9850 6100
 F 0 "D5" H 9850 6200 50  0000 C CNN
@@ -1016,7 +907,7 @@ F 3 "" H 9850 6100 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L IRF540N Q5
+L base_heating-rescue:IRF540N Q5
 U 1 1 5A189E34
 P 9200 6200
 F 0 "Q5" H 9450 6275 50  0000 L CNN
@@ -1027,7 +918,7 @@ F 3 "" H 9200 6200 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Screw_Terminal_01x04 J6
+L Connector:Screw_Terminal_01x04 J6
 U 1 1 5A18A1C8
 P 3450 7350
 F 0 "J6" H 3450 7550 50  0000 C CNN
@@ -1046,7 +937,7 @@ DIN3
 Text GLabel 2450 7550 0    60   BiDi ~ 0
 DIN4
 $Comp
-L R R14
+L base_heating-rescue:R R14
 U 1 1 5A18AE5B
 P 3000 7250
 F 0 "R14" V 3080 7250 50  0000 C CNN
@@ -1057,7 +948,7 @@ F 3 "" H 3000 7250 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R12
+L base_heating-rescue:R R12
 U 1 1 5A18AF52
 P 2700 7350
 F 0 "R12" V 2780 7350 50  0000 C CNN
@@ -1068,7 +959,7 @@ F 3 "" H 2700 7350 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R15
+L base_heating-rescue:R R15
 U 1 1 5A18B018
 P 3000 7450
 F 0 "R15" V 3080 7450 50  0000 C CNN
@@ -1079,7 +970,7 @@ F 3 "" H 3000 7450 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R13
+L base_heating-rescue:R R13
 U 1 1 5A18B0CF
 P 2700 7550
 F 0 "R13" V 2780 7550 50  0000 C CNN
@@ -1090,7 +981,7 @@ F 3 "" H 2700 7550 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Conn_01x04 J3
+L base_heating-rescue:Conn_01x04 J3
 U 1 1 5A18BD62
 P 1850 7350
 F 0 "J3" H 1850 7550 50  0000 C CNN
@@ -1101,7 +992,7 @@ F 3 "" H 1850 7350 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +24V #PWR029
+L power:+24V #PWR029
 U 1 1 5A18BEAE
 P 1500 7050
 F 0 "#PWR029" H 1500 6900 50  0001 C CNN
@@ -1114,7 +1005,7 @@ $EndComp
 Text GLabel 850  7050 1    60   Input ~ 0
 VCC_18
 $Comp
-L R R2
+L base_heating-rescue:R R2
 U 1 1 5A18C151
 P 1150 7050
 F 0 "R2" V 1230 7050 50  0000 C CNN
@@ -1125,7 +1016,7 @@ F 3 "" H 1150 7050 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L +3V3 #PWR030
+L power:+3V3 #PWR030
 U 1 1 5A18C721
 P 1600 7550
 F 0 "#PWR030" H 1600 7400 50  0001 C CNN
@@ -1136,7 +1027,7 @@ F 3 "" H 1600 7550 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L GND #PWR031
+L power:GND #PWR031
 U 1 1 5A18C968
 P 1300 7450
 F 0 "#PWR031" H 1300 7200 50  0001 C CNN
@@ -1147,7 +1038,7 @@ F 3 "" H 1300 7450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C6
+L base_heating-rescue:C C6
 U 1 1 5A18CE2E
 P 1350 6250
 F 0 "C6" H 1375 6350 50  0000 L CNN
@@ -1158,7 +1049,7 @@ F 3 "" H 1350 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C15
+L base_heating-rescue:C C15
 U 1 1 5A18D28C
 P 2450 6250
 F 0 "C15" H 2475 6350 50  0000 L CNN
@@ -1169,7 +1060,7 @@ F 3 "" H 2450 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C4
+L base_heating-rescue:C C4
 U 1 1 5A18D8EC
 P 1150 6250
 F 0 "C4" H 1175 6350 50  0000 L CNN
@@ -1180,7 +1071,7 @@ F 3 "" H 1150 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C2
+L base_heating-rescue:C C2
 U 1 1 5A18DBB8
 P 950 6250
 F 0 "C2" H 975 6350 50  0000 L CNN
@@ -1191,7 +1082,7 @@ F 3 "" H 950 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C1
+L base_heating-rescue:C C1
 U 1 1 5A18E156
 P 750 6250
 F 0 "C1" H 775 6350 50  0000 L CNN
@@ -1228,7 +1119,7 @@ DIN_SW_B2_135
 Text GLabel 850  4850 2    60   Input ~ 0
 DIN_SW_B3_135
 $Comp
-L Conn_01x04 J10
+L base_heating-rescue:Conn_01x04 J10
 U 1 1 5A19008E
 P 6050 6450
 F 0 "J10" H 6050 6650 50  0000 C CNN
@@ -1239,7 +1130,7 @@ F 3 "" H 6050 6450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3V3 #PWR032
+L power:+3V3 #PWR032
 U 1 1 5A19030A
 P 5750 6350
 F 0 "#PWR032" H 5750 6200 50  0001 C CNN
@@ -1250,7 +1141,7 @@ F 3 "" H 5750 6350 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR033
+L power:GND #PWR033
 U 1 1 5A1903CF
 P 5800 6450
 F 0 "#PWR033" H 5800 6200 50  0001 C CNN
@@ -1265,7 +1156,7 @@ SCL
 Text GLabel 5600 6650 0    60   Input ~ 0
 SDA
 $Comp
-L Conn_01x04 J9
+L base_heating-rescue:Conn_01x04 J9
 U 1 1 5A191A3D
 P 5350 7250
 F 0 "J9" H 5350 7450 50  0000 C CNN
@@ -1278,7 +1169,7 @@ $EndComp
 Text GLabel 5100 6950 0    60   Input ~ 0
 DIN5
 $Comp
-L +3V3 #PWR034
+L power:+3V3 #PWR034
 U 1 1 5A191D80
 P 5000 7200
 F 0 "#PWR034" H 5000 7050 50  0001 C CNN
@@ -1289,7 +1180,7 @@ F 3 "" H 5000 7200 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR035
+L power:GND #PWR035
 U 1 1 5A19205F
 P 5000 7550
 F 0 "#PWR035" H 5000 7300 50  0001 C CNN
@@ -1302,7 +1193,7 @@ $EndComp
 Text GLabel 4950 7450 0    60   Input ~ 0
 AIN_A_D
 $Comp
-L Screw_Terminal_01x04 J14
+L Connector:Screw_Terminal_01x04 J14
 U 1 1 5A1954C0
 P 7850 6100
 F 0 "J14" H 7850 6300 50  0000 C CNN
@@ -1313,7 +1204,7 @@ F 3 "" H 7850 6100 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L IRF540N Q2
+L base_heating-rescue:IRF540N Q2
 U 1 1 5A195AB2
 P 6950 6250
 F 0 "Q2" H 7200 6325 50  0000 L CNN
@@ -1324,7 +1215,7 @@ F 3 "" H 6950 6250 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L IRF540N Q3
+L base_heating-rescue:IRF540N Q3
 U 1 1 5A195BE7
 P 7150 5800
 F 0 "Q3" H 7400 5875 50  0000 L CNN
@@ -1335,7 +1226,7 @@ F 3 "" H 7150 5800 50  0001 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR036
+L power:GND #PWR036
 U 1 1 5A195D19
 P 7550 6350
 F 0 "#PWR036" H 7550 6100 50  0001 C CNN
@@ -1350,7 +1241,7 @@ ODSW_3
 Text GLabel 6650 6250 0    60   BiDi ~ 0
 ODSW_4
 $Comp
-L Screw_Terminal_01x04 J5
+L Connector:Screw_Terminal_01x04 J5
 U 1 1 5A196DA5
 P 3450 6700
 F 0 "J5" H 3450 6900 50  0000 C CNN
@@ -1361,7 +1252,7 @@ F 3 "" H 3450 6700 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR037
+L power:GND #PWR037
 U 1 1 5A196F29
 P 3150 6950
 F 0 "#PWR037" H 3150 6700 50  0001 C CNN
@@ -1372,7 +1263,7 @@ F 3 "" H 3150 6950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LED D1
+L base_heating-rescue:LED D1
 U 1 1 5A1976D6
 P 850 5550
 F 0 "D1" H 850 5650 50  0000 C CNN
@@ -1383,7 +1274,7 @@ F 3 "" H 850 5550 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L LED D2
+L base_heating-rescue:LED D2
 U 1 1 5A19799D
 P 1100 5550
 F 0 "D2" H 1100 5650 50  0000 C CNN
@@ -1394,7 +1285,7 @@ F 3 "" H 1100 5550 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 $Comp
-L Conn_01x04 J8
+L base_heating-rescue:Conn_01x04 J8
 U 1 1 5A197FC2
 P 5250 6450
 F 0 "J8" H 5250 6650 50  0000 C CNN
@@ -1407,7 +1298,7 @@ $EndComp
 Text GLabel 4750 6550 0    60   Input ~ 0
 SCL
 $Comp
-L GND #PWR038
+L power:GND #PWR038
 U 1 1 5A19843A
 P 4950 6450
 F 0 "#PWR038" H 4950 6200 50  0001 C CNN
@@ -1418,7 +1309,7 @@ F 3 "" H 4950 6450 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L +3V3 #PWR039
+L power:+3V3 #PWR039
 U 1 1 5A198686
 P 4900 6350
 F 0 "#PWR039" H 4900 6200 50  0001 C CNN
@@ -1435,7 +1326,7 @@ SCL
 Text GLabel 3650 6050 0    60   Input ~ 0
 SDA
 $Comp
-L R R17
+L base_heating-rescue:R R17
 U 1 1 5A1991E4
 P 3900 5900
 F 0 "R17" V 3980 5900 50  0000 C CNN
@@ -1446,7 +1337,7 @@ F 3 "" H 3900 5900 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R18
+L base_heating-rescue:R R18
 U 1 1 5A199329
 P 3900 6050
 F 0 "R18" V 3980 6050 50  0000 C CNN
@@ -1457,7 +1348,7 @@ F 3 "" H 3900 6050 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L +3V3 #PWR040
+L power:+3V3 #PWR040
 U 1 1 5A19967C
 P 4050 5800
 F 0 "#PWR040" H 4050 5650 50  0001 C CNN
@@ -1468,7 +1359,7 @@ F 3 "" H 4050 5800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR041
+L power:GND #PWR041
 U 1 1 5A199F40
 P 950 5800
 F 0 "#PWR041" H 950 5550 50  0001 C CNN
@@ -1479,7 +1370,7 @@ F 3 "" H 950 5800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L R R5
+L base_heating-rescue:R R5
 U 1 1 5A19A2DD
 P 1300 5400
 F 0 "R5" V 1380 5400 50  0000 C CNN
@@ -1490,7 +1381,7 @@ F 3 "" H 1300 5400 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R4
+L base_heating-rescue:R R4
 U 1 1 5A19A43C
 P 1300 5250
 F 0 "R4" V 1380 5250 50  0000 C CNN
@@ -1531,7 +1422,7 @@ USB_DP
 Text GLabel 950  700  0    60   Input ~ 0
 AIN_A_D
 $Comp
-L Conn_01x03 J11
+L base_heating-rescue:Conn_01x03 J11
 U 1 1 5A1A4471
 P 6100 5750
 F 0 "J11" H 6100 5950 50  0000 C CNN
@@ -1542,7 +1433,7 @@ F 3 "" H 6100 5750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR042
+L power:GND #PWR042
 U 1 1 5A1A4637
 P 5800 5900
 F 0 "#PWR042" H 5800 5650 50  0001 C CNN
@@ -1557,7 +1448,7 @@ USB_DM
 Text GLabel 5800 5650 0    60   BiDi ~ 0
 USB_DP
 $Comp
-L Conn_01x03 J4
+L base_heating-rescue:Conn_01x03 J4
 U 1 1 5A1A5E78
 P 2900 1450
 F 0 "J4" H 2900 1650 50  0000 C CNN
@@ -1568,7 +1459,7 @@ F 3 "" H 2900 1450 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L Mounting_Hole MK1
+L base_heating-rescue:Mounting_Hole MK1
 U 1 1 5A1A750F
 P 2200 5650
 F 0 "MK1" H 2200 5850 50  0000 C CNN
@@ -1579,7 +1470,7 @@ F 3 "" H 2200 5650 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Mounting_Hole MK2
+L base_heating-rescue:Mounting_Hole MK2
 U 1 1 5A1A7987
 P 2750 5650
 F 0 "MK2" H 2750 5850 50  0000 C CNN
@@ -1592,7 +1483,7 @@ $EndComp
 Text GLabel 11150 2550 2    60   Input ~ 0
 /A_PU_ON
 $Comp
-L Screw_Terminal_01x04 J17
+L Connector:Screw_Terminal_01x04 J17
 U 1 1 5A1AA5E3
 P 4300 4950
 F 0 "J17" H 4300 5150 50  0000 C CNN
@@ -1603,7 +1494,7 @@ F 3 "" H 4300 4950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR043
+L power:GND #PWR043
 U 1 1 5A1AA73B
 P 4000 4850
 F 0 "#PWR043" H 4000 4600 50  0001 C CNN
@@ -1616,7 +1507,7 @@ $EndComp
 Text GLabel 11650 2650 2    60   BiDi ~ 0
 RS422DE
 $Comp
-L GND #PWR044
+L power:GND #PWR044
 U 1 1 5A1C0BBF
 P 2950 5000
 F 0 "#PWR044" H 2950 4750 50  0001 C CNN
@@ -1627,7 +1518,7 @@ F 3 "" H 2950 5000 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L R R19
+L base_heating-rescue:R R19
 U 1 1 5A1ADE38
 P 2450 1750
 F 0 "R19" V 2530 1750 50  0000 C CNN
@@ -1638,7 +1529,7 @@ F 3 "" H 2450 1750 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L Conn_01x03 J18
+L base_heating-rescue:Conn_01x03 J18
 U 1 1 5A1B0009
 P 11100 4750
 F 0 "J18" H 11100 4950 50  0000 C CNN
@@ -1649,7 +1540,7 @@ F 3 "" H 11100 4750 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L GND #PWR045
+L power:GND #PWR045
 U 1 1 5A1B02BF
 P 10800 4550
 F 0 "#PWR045" H 10800 4300 50  0001 C CNN
@@ -1664,24 +1555,24 @@ Wire Wire Line
 Wire Wire Line
 	1300 5050 850  5050
 Wire Wire Line
-	850  1000 1400 1000
+	850  1000 950  1000
 Wire Wire Line
-	850  1100 2250 1100
+	850  1100 1250 1100
 Wire Wire Line
-	850  1200 2250 1200
+	850  1200 1450 1200
 Wire Wire Line
-	850  1300 2250 1300
+	850  1300 1650 1300
 Wire Wire Line
-	850  1400 2250 1400
+	850  1400 1850 1400
 Wire Wire Line
-	850  1500 2250 1500
+	850  1500 2050 1500
 Connection ~ 1250 550 
 Connection ~ 1450 550 
 Connection ~ 1650 550 
 Connection ~ 1850 550 
 Connection ~ 2050 550 
 Wire Wire Line
-	950  1900 2450 1900
+	950  1900 1050 1900
 Connection ~ 1850 1900
 Connection ~ 1650 1900
 Connection ~ 1450 1900
@@ -1694,25 +1585,25 @@ Connection ~ 1050 1900
 Wire Wire Line
 	2050 1900 2050 1950
 Wire Wire Line
-	2050 850  2050 1600
+	2050 850  2050 1500
 Connection ~ 2050 1500
 Wire Wire Line
-	1850 850  1850 1600
+	1850 850  1850 1400
 Connection ~ 1850 1400
 Wire Wire Line
-	1650 850  1650 1600
+	1650 850  1650 1300
 Connection ~ 1650 1300
 Wire Wire Line
-	1450 850  1450 1600
+	1450 850  1450 1200
 Connection ~ 1450 1200
 Wire Wire Line
-	1250 850  1250 1600
+	1250 850  1250 1100
 Connection ~ 1250 1100
 Wire Wire Line
-	1050 850  1050 1600
+	1050 850  1050 1000
 Connection ~ 1050 1000
 Wire Wire Line
-	1700 1000 2250 1000
+	1700 1000 2200 1000
 Wire Wire Line
 	2250 1600 2250 1550
 Wire Wire Line
@@ -1733,7 +1624,7 @@ Wire Wire Line
 Wire Wire Line
 	6900 4700 6900 4750
 Wire Wire Line
-	6800 700  7300 700 
+	6800 700  7000 700 
 Wire Wire Line
 	7000 700  7000 750 
 Wire Wire Line
@@ -1747,7 +1638,7 @@ Wire Wire Line
 Wire Wire Line
 	1750 6050 1850 6050
 Wire Wire Line
-	2150 6050 2450 6050
+	2150 6050 2250 6050
 Wire Wire Line
 	2250 6050 2250 6100
 Connection ~ 2250 6050
@@ -1756,7 +1647,7 @@ Wire Wire Line
 Wire Wire Line
 	1750 6100 1750 6050
 Wire Wire Line
-	750  6400 2450 6400
+	750  6400 950  6400
 Connection ~ 2250 6400
 Wire Wire Line
 	5300 4550 5300 4600
@@ -1769,21 +1660,21 @@ Wire Wire Line
 Wire Wire Line
 	6350 7350 6450 7350
 Wire Wire Line
-	6350 6650 6350 7350
+	6350 6650 6350 6750
 Wire Wire Line
 	6350 6750 6450 6750
 Wire Wire Line
-	6300 6850 6300 7450
+	6300 6850 6300 7300
 Wire Wire Line
 	6300 7450 6450 7450
 Wire Wire Line
 	6450 6950 6250 6950
 Wire Wire Line
-	6250 6950 6250 7550
+	6250 6950 6250 7100
 Wire Wire Line
 	6250 7550 6450 7550
 Wire Wire Line
-	5800 7650 6450 7650
+	5800 7650 5850 7650
 Wire Wire Line
 	6200 7650 6200 7050
 Wire Wire Line
@@ -1792,7 +1683,7 @@ Connection ~ 6350 6750
 Connection ~ 6200 7650
 Connection ~ 5850 7650
 Wire Wire Line
-	5800 6950 5900 6950
+	5800 6950 5850 6950
 Wire Wire Line
 	6250 7100 5900 7100
 Wire Wire Line
@@ -1800,7 +1691,7 @@ Wire Wire Line
 Connection ~ 5850 6950
 Connection ~ 6250 7100
 Wire Wire Line
-	6000 7300 6300 7300
+	6000 7300 6100 7300
 Connection ~ 6100 7300
 Wire Wire Line
 	6450 6850 6300 6850
@@ -1812,13 +1703,13 @@ Wire Wire Line
 Wire Wire Line
 	4900 4900 4850 4900
 Wire Wire Line
-	750  6100 1750 6100
+	750  6100 950  6100
 Connection ~ 1750 6400
 Connection ~ 1750 6100
 Wire Wire Line
 	2550 550  2550 700 
 Wire Wire Line
-	1050 550  2550 550 
+	1050 550  1250 550 
 Wire Wire Line
 	4850 5150 4850 5100
 Wire Wire Line
@@ -1830,17 +1721,17 @@ Wire Wire Line
 Wire Wire Line
 	3350 1250 3400 1250
 Wire Wire Line
-	7000 4450 7300 4450
+	7000 4450 7100 4450
 Connection ~ 7100 4450
 Connection ~ 7200 4450
 Wire Wire Line
 	7200 4450 7200 4550
 Wire Wire Line
-	9200 4750 9450 4750
+	9200 4750 9250 4750
 Wire Wire Line
 	9200 4550 9250 4550
 Wire Wire Line
-	9250 5050 10550 5050
+	9250 5050 9600 5050
 Wire Wire Line
 	9600 4900 9600 5050
 Connection ~ 9600 5050
@@ -1848,7 +1739,7 @@ Wire Wire Line
 	9450 4750 9450 4850
 Connection ~ 9250 4750
 Wire Wire Line
-	9550 4550 10550 4550
+	9550 4550 9600 4550
 Wire Wire Line
 	9600 4600 9600 4550
 Connection ~ 9600 4550
@@ -1879,13 +1770,11 @@ Wire Wire Line
 	10550 4550 10550 4950
 Connection ~ 10350 4550
 Wire Wire Line
-	9000 6200 9000 6200
-Wire Wire Line
 	9200 6400 9300 6400
 Wire Wire Line
 	9300 6000 9300 5950
 Wire Wire Line
-	9300 5950 10000 5950
+	9300 5950 9850 5950
 Wire Wire Line
 	4050 7550 4200 7550
 Wire Wire Line
@@ -1917,7 +1806,7 @@ Connection ~ 8750 5650
 Wire Wire Line
 	10000 5850 9950 5850
 Wire Wire Line
-	9950 5850 9950 6300
+	9950 5850 9950 6050
 Wire Wire Line
 	9950 6050 10000 6050
 Connection ~ 9950 6050
@@ -1926,8 +1815,6 @@ Wire Wire Line
 Connection ~ 9950 6250
 Wire Wire Line
 	8850 5950 8750 5950
-Wire Wire Line
-	7850 5850 7850 5850
 Wire Wire Line
 	3150 7250 3250 7250
 Wire Wire Line
@@ -1984,9 +1871,9 @@ Wire Wire Line
 Wire Wire Line
 	5000 7350 5150 7350
 Wire Wire Line
-	7550 6100 7550 6350
+	7550 6100 7550 6300
 Wire Wire Line
-	7250 6300 7650 6300
+	7250 6300 7550 6300
 Wire Wire Line
 	7550 6100 7650 6100
 Connection ~ 7550 6300
@@ -2001,7 +1888,7 @@ Wire Wire Line
 Wire Wire Line
 	7650 5600 7250 5600
 Wire Wire Line
-	7250 6000 7250 6450
+	7250 6000 7250 6300
 Wire Wire Line
 	7250 6450 7050 6450
 Connection ~ 7250 6300
@@ -2010,7 +1897,7 @@ Wire Wire Line
 Wire Wire Line
 	6750 6250 6650 6250
 Wire Wire Line
-	3150 6600 3150 6950
+	3150 6600 3150 6700
 Wire Wire Line
 	3150 6600 3250 6600
 Wire Wire Line
@@ -2035,10 +1922,10 @@ Wire Wire Line
 Wire Wire Line
 	3650 5900 3750 5900
 Wire Wire Line
-	4050 5800 4050 6050
+	4050 5800 4050 5900
 Connection ~ 4050 5900
 Wire Wire Line
-	850  5700 1100 5700
+	850  5700 950  5700
 Wire Wire Line
 	950  5800 950  5700
 Connection ~ 950  5700
@@ -2055,15 +1942,7 @@ Wire Wire Line
 Wire Wire Line
 	11150 2550 11000 2550
 Wire Wire Line
-	11000 2650 11650 2650
-Wire Wire Line
-	11000 2750 11650 2750
-Wire Wire Line
-	11000 2850 11650 2850
-Wire Wire Line
 	11150 2950 11000 2950
-Wire Wire Line
-	11000 3050 11700 3050
 Wire Wire Line
 	11000 3850 11050 3850
 Wire Wire Line
@@ -2076,8 +1955,6 @@ Wire Wire Line
 	3300 3250 3400 3250
 Wire Wire Line
 	3300 3150 3400 3150
-Wire Wire Line
-	11000 3650 11750 3650
 Wire Wire Line
 	5100 6950 5150 6950
 Wire Wire Line
@@ -2105,18 +1982,13 @@ Wire Wire Line
 Wire Wire Line
 	3100 1450 3400 1450
 Wire Wire Line
-	11000 3250 12000 3250
-Wire Wire Line
 	3950 5150 3950 5050
 Wire Wire Line
 	3950 5050 4100 5050
 Wire Wire Line
 	4000 4850 4100 4850
-Connection ~ 11150 2650
-Connection ~ 11150 2850
-Connection ~ 11150 2750
 Wire Wire Line
-	11000 3450 11750 3450
+	11000 3450 11650 3450
 Wire Wire Line
 	2950 4950 2950 5000
 Wire Wire Line
@@ -2141,21 +2013,11 @@ Wire Wire Line
 Wire Wire Line
 	11650 4250 11650 3450
 Wire Wire Line
-	2350 2550 3400 2550
-Wire Wire Line
-	2350 2650 3400 2650
-Wire Wire Line
-	2350 2750 3400 2750
-Wire Wire Line
-	2450 3550 3400 3550
-Wire Wire Line
-	2450 3650 3400 3650
-Wire Wire Line
 	3300 3750 3400 3750
 Wire Wire Line
 	3300 3850 3400 3850
 $Comp
-L Jumper_NO_Small JP1
+L base_heating-rescue:Jumper_NO_Small JP1
 U 1 1 5A1B6EB7
 P 6500 4450
 F 0 "JP1" H 6500 4530 50  0000 C CNN
@@ -2166,7 +2028,7 @@ F 3 "" H 6500 4450 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L Jumper_NO_Small JP2
+L base_heating-rescue:Jumper_NO_Small JP2
 U 1 1 5A1B7118
 P 6500 4650
 F 0 "JP2" H 6500 4730 50  0000 C CNN
@@ -2179,7 +2041,7 @@ $EndComp
 Wire Wire Line
 	6550 4500 6550 4700
 $Comp
-L Jumper_NO_Small JP3
+L base_heating-rescue:Jumper_NO_Small JP3
 U 1 1 5A1B7B0C
 P 6500 4800
 F 0 "JP3" H 6500 4880 50  0000 C CNN
@@ -2190,7 +2052,7 @@ F 3 "" H 6500 4800 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 Wire Wire Line
-	6600 4450 6600 4800
+	6600 4450 6600 4650
 Connection ~ 6600 4650
 Wire Wire Line
 	6900 4700 6600 4700
@@ -2221,8 +2083,6 @@ Wire Wire Line
 	3400 4050 3300 4050
 Wire Wire Line
 	3300 3950 3400 3950
-Wire Wire Line
-	11000 3350 12400 3350
 Text GLabel 11150 3250 2    60   BiDi ~ 0
 DOUT_LED_RED
 Text GLabel 3300 2550 0    60   BiDi ~ 0
@@ -2273,12 +2133,8 @@ Text GLabel 3300 2850 0    60   Input ~ 0
 DIN_SW_B3_135
 Text GLabel 11750 3650 2    60   Output ~ 0
 DOUT_K2_20A
-Wire Wire Line
-	11000 4050 12600 4050
 Text GLabel 11750 3750 2    60   Output ~ 0
 DOUT_K1_FIRE
-Wire Wire Line
-	2450 2850 3400 2850
 Text GLabel 3300 3050 0    60   BiDi ~ 0
 ODSW_2
 Wire Wire Line
@@ -2312,23 +2168,9 @@ ACSW_1
 Text GLabel 12600 4050 2    60   Output ~ 0
 LED_B
 Wire Wire Line
-	11000 3750 11750 3750
-Connection ~ 11050 3750
-Connection ~ 11050 3650
-Connection ~ 11750 3550
-Connection ~ 11150 3350
-Connection ~ 11150 3250
-Wire Wire Line
-	11000 3550 11750 3550
-Connection ~ 3300 3550
-Connection ~ 3300 3650
-Connection ~ 3300 2850
-Connection ~ 3300 2750
-Connection ~ 3300 2650
-Connection ~ 3300 2550
-Connection ~ 11750 4050
+	11000 3550 11550 3550
 $Comp
-L R R28
+L base_heating-rescue:R R28
 U 1 1 5A1D9D37
 P 9400 5200
 F 0 "R28" V 9480 5200 50  0000 C CNN
@@ -2339,7 +2181,7 @@ F 3 "" H 9400 5200 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 Wire Wire Line
-	8150 5650 9100 5650
+	8150 5650 8750 5650
 Wire Wire Line
 	9100 5650 9100 5850
 Wire Wire Line
@@ -2349,7 +2191,7 @@ Wire Wire Line
 Wire Wire Line
 	9900 5750 10000 5750
 $Comp
-L R R20
+L base_heating-rescue:R R20
 U 1 1 5A1DA6B4
 P 9250 5550
 F 0 "R20" V 9330 5550 50  0000 C CNN
@@ -2360,7 +2202,7 @@ F 3 "" H 9250 5550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L BT136-800 Q7
+L base_heating-rescue:BT136-800 Q7
 U 1 1 5A1DA88A
 P 9550 5400
 F 0 "Q7" H 9750 5475 50  0000 L CNN
@@ -2371,7 +2213,7 @@ F 3 "" H 9550 5400 50  0000 L CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L C C16
+L base_heating-rescue:C C16
 U 1 1 5A1DA9B9
 P 9800 5450
 F 0 "C16" H 9825 5550 50  0000 L CNN
@@ -2382,7 +2224,7 @@ F 3 "" H 9800 5450 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R29
+L base_heating-rescue:R R29
 U 1 1 5A1DAAF5
 P 10050 5400
 F 0 "R29" V 10130 5400 50  0000 C CNN
@@ -2393,7 +2235,7 @@ F 3 "" H 10050 5400 50  0001 C CNN
 	-1   0    0    1   
 $EndComp
 $Comp
-L R R30
+L base_heating-rescue:R R30
 U 1 1 5A1DAC79
 P 10250 5400
 F 0 "R30" V 10330 5400 50  0000 C CNN
@@ -2406,18 +2248,18 @@ $EndComp
 Wire Wire Line
 	9200 5200 9250 5200
 Wire Wire Line
-	9550 5150 9550 5250
+	9550 5150 9550 5200
 Wire Wire Line
-	9200 5400 9400 5400
+	9200 5400 9250 5400
 Wire Wire Line
 	9400 5400 9400 5500
 Connection ~ 9250 5400
 Wire Wire Line
 	9250 5700 9550 5700
 Wire Wire Line
-	9550 5700 9550 5550
+	9550 5700 9550 5600
 Wire Wire Line
-	9550 5600 10550 5600
+	9550 5600 9800 5600
 Connection ~ 9550 5600
 Wire Wire Line
 	10550 5600 10550 5250
@@ -2427,7 +2269,7 @@ Wire Wire Line
 Wire Wire Line
 	10250 5250 10250 5150
 Wire Wire Line
-	9550 5150 10550 5150
+	9550 5150 10250 5150
 Connection ~ 10250 5150
 Connection ~ 9550 5200
 Wire Wire Line
@@ -2435,7 +2277,7 @@ Wire Wire Line
 Wire Wire Line
 	9800 5250 9800 5300
 $Comp
-L +3V3 #PWR046
+L power:+3V3 #PWR046
 U 1 1 5A1E0A0C
 P 4050 5200
 F 0 "#PWR046" H 4050 5050 50  0001 C CNN
@@ -2451,5 +2293,182 @@ Wire Wire Line
 	4050 5150 4050 5200
 Text GLabel 11700 3050 2    60   Input ~ 0
 DIN5
-Connection ~ 11150 3050
+Wire Wire Line
+	1250 550  1450 550 
+Wire Wire Line
+	1450 550  1650 550 
+Wire Wire Line
+	1650 550  1850 550 
+Wire Wire Line
+	1850 550  2050 550 
+Wire Wire Line
+	2050 550  2550 550 
+Wire Wire Line
+	1850 1900 2050 1900
+Wire Wire Line
+	1650 1900 1850 1900
+Wire Wire Line
+	1450 1900 1650 1900
+Wire Wire Line
+	1250 1900 1450 1900
+Wire Wire Line
+	1050 1900 1250 1900
+Wire Wire Line
+	2050 1500 2250 1500
+Wire Wire Line
+	2050 1500 2050 1600
+Wire Wire Line
+	1850 1400 2250 1400
+Wire Wire Line
+	1850 1400 1850 1600
+Wire Wire Line
+	1650 1300 2250 1300
+Wire Wire Line
+	1650 1300 1650 1600
+Wire Wire Line
+	1450 1200 2250 1200
+Wire Wire Line
+	1450 1200 1450 1600
+Wire Wire Line
+	1250 1100 2250 1100
+Wire Wire Line
+	1250 1100 1250 1600
+Wire Wire Line
+	1050 1000 1400 1000
+Wire Wire Line
+	1050 1000 1050 1600
+Wire Wire Line
+	2200 1000 2250 1000
+Wire Wire Line
+	2050 1900 2250 1900
+Wire Wire Line
+	7000 700  7100 700 
+Wire Wire Line
+	7100 700  7300 700 
+Wire Wire Line
+	2250 6050 2450 6050
+Wire Wire Line
+	2250 6400 2450 6400
+Wire Wire Line
+	6350 6750 6350 7350
+Wire Wire Line
+	6200 7650 6450 7650
+Wire Wire Line
+	5850 7650 6200 7650
+Wire Wire Line
+	5850 6950 5900 6950
+Wire Wire Line
+	6250 7100 6250 7550
+Wire Wire Line
+	6100 7300 6300 7300
+Wire Wire Line
+	6300 7300 6300 7450
+Wire Wire Line
+	1750 6400 2250 6400
+Wire Wire Line
+	7100 4450 7200 4450
+Wire Wire Line
+	7200 4450 7300 4450
+Wire Wire Line
+	9600 5050 9900 5050
+Wire Wire Line
+	9250 4750 9450 4750
+Wire Wire Line
+	9600 4550 10350 4550
+Wire Wire Line
+	9900 5050 10550 5050
+Wire Wire Line
+	10350 4550 10550 4550
+Wire Wire Line
+	9850 5950 10000 5950
+Wire Wire Line
+	8750 5650 9100 5650
+Wire Wire Line
+	9950 6050 9950 6250
+Wire Wire Line
+	9950 6250 9950 6300
+Wire Wire Line
+	1550 6100 1750 6100
+Wire Wire Line
+	1550 6400 1750 6400
+Wire Wire Line
+	1350 6100 1550 6100
+Wire Wire Line
+	1350 6400 1550 6400
+Wire Wire Line
+	1150 6100 1350 6100
+Wire Wire Line
+	1150 6400 1350 6400
+Wire Wire Line
+	950  6100 1150 6100
+Wire Wire Line
+	950  6400 1150 6400
+Wire Wire Line
+	7550 6300 7550 6350
+Wire Wire Line
+	7550 6300 7650 6300
+Wire Wire Line
+	7250 6300 7250 6450
+Wire Wire Line
+	3150 6700 3150 6800
+Wire Wire Line
+	3150 6800 3150 6900
+Wire Wire Line
+	3150 6900 3150 6950
+Wire Wire Line
+	4050 5900 4050 6050
+Wire Wire Line
+	950  5700 1100 5700
+Wire Wire Line
+	950  1000 1050 1000
+Wire Wire Line
+	2250 1900 2450 1900
+Wire Wire Line
+	6600 4650 6600 4700
+Wire Wire Line
+	6600 4700 6600 4800
+Wire Wire Line
+	11650 3450 11750 3450
+Wire Wire Line
+	11550 3550 11750 3550
+Wire Wire Line
+	9250 5400 9400 5400
+Wire Wire Line
+	9550 5600 9550 5550
+Wire Wire Line
+	9800 5600 10550 5600
+Wire Wire Line
+	10250 5150 10550 5150
+Wire Wire Line
+	9550 5200 9550 5250
+Wire Wire Line
+	11000 2650 11650 2650
+Wire Wire Line
+	11000 2750 11650 2750
+Wire Wire Line
+	11000 2850 11650 2850
+Wire Wire Line
+	11000 3050 11700 3050
+Wire Wire Line
+	11000 3650 11750 3650
+Wire Wire Line
+	11000 3250 12000 3250
+Wire Wire Line
+	2350 2550 3400 2550
+Wire Wire Line
+	2350 2650 3400 2650
+Wire Wire Line
+	2350 2750 3400 2750
+Wire Wire Line
+	2450 3550 3400 3550
+Wire Wire Line
+	2450 3650 3400 3650
+Wire Wire Line
+	11000 3350 12400 3350
+Wire Wire Line
+	11000 4050 12600 4050
+Wire Wire Line
+	2450 2850 3400 2850
+Wire Wire Line
+	11000 3750 11750 3750
 $EndSCHEMATC
