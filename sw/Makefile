@@ -126,7 +126,8 @@ CSRC = $(ALLCSRC) \
        drivers/eeprom24c.c \
        libcanard/canard.c \
        exception.c \
-       bootloader_interface.c
+       bootloader_interface.c \
+       nodes/defaultNode.c
 
 ifeq ($(BOOTLOADER),1)
 CSRC += firmware_update.c \
@@ -138,11 +139,10 @@ CSRC += bme280_node.c \
         drivers/pwm.c \
         conduction_sensor.c \
         eventcount.c \
-        sml.c \
         dimmer.c \
         pump_receiver.c \
-        light.c \
-        time_data.c
+        time_data.c \
+        nodes/hallway_light.c
 endif
 
 

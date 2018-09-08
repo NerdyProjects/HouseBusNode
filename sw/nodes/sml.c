@@ -1,13 +1,8 @@
-/*
- * sml.c
- *
- *  Created on: 02.04.2018
- *      Author: matthias
- */
+#ifdef NODE_SML
 
 #include "hal.h"
-#include "config.h"
-#include "node.h"
+#include "../config.h"
+#include "../node.h"
 #include "string.h"
 
 SerialDriver *port = NULL;
@@ -38,7 +33,7 @@ static SerialDriver* port_to_serial(uint8_t port)
   }
 }
 
-void sml_init(void)
+void app_init(void)
 {
   port = port_to_serial(config_get_uint(CONFIG_SML_PORT));
 }
@@ -68,7 +63,7 @@ static void broadcast_meter(uint8_t* obis, uint8_t unit, uint8_t* value)
  * processes incoming SML data.
  * Generates an obis message for 1.8.0 and 2.8.0 codes.
  */
-void sml_tick(void)
+void app_fast_tick(void)
 {
   static uint8_t state = ST_SEARCH_PREFIX;
   static uint8_t substate = 0;
@@ -187,3 +182,4 @@ void sml_tick(void)
   }
 }
 
+#endif

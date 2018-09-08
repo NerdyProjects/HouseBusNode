@@ -27,9 +27,8 @@
 #include "dimmer.h"
 #include "uavcan.h"
 #include "eventcount.h"
-#include "sml.h"
 #include "util.h"
-#include "light.h"
+#include "nodes/node.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -82,8 +81,7 @@ int main(void)
   wdgReset(&WDGD1);
   bme280_node_init();
   wdgReset(&WDGD1);
-  sml_init();
-  light_init();
+  app_init();
 #endif
   chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
   wdgReset(&WDGD1);

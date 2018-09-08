@@ -22,9 +22,8 @@
 #include "pump_receiver.h"
 #include "dimmer.h"
 #include "eventcount.h"
-#include "sml.h"
-#include "light.h"
 #include "time_data.h"
+#include "nodes/node.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -646,6 +645,7 @@ static void process1HzTasks(uint64_t timestamp_usec)
     {
       pump_receiver_tick();
     }
+    app_tick();
   }
 
 #endif
@@ -813,12 +813,11 @@ static THD_FUNCTION(FastTasksThread, arg)
   {
     /* Executed every ~5ms. Can be used for key debouncing etc. */
     eventcount_acquire();
-    sml_tick();
     if(dimmer_is_present())
     {
       dimmer_tick();
     }
-    light_fast_tick();
+    app_fast_tick();
     nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + TIME_MS2I(5));
   }
 }
