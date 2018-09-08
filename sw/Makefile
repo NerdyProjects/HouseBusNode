@@ -142,6 +142,7 @@ CSRC += bme280_node.c \
         dimmer.c \
         pump_receiver.c \
         time_data.c \
+        nodes/viessmann_trimatik.c \
         nodes/hallway_light.c
 endif
 
