@@ -8,7 +8,7 @@
 #ifndef DRIVERS_ANALOG_H_
 #define DRIVERS_ANALOG_H_
 
-void analog_filter_reset(uint8_t channel);
+void analog_filter_reset(uint16_t channels);
 void analog_init(void);
 int analog_get_internal_ts(void);
 int analog_get_vdda(void);

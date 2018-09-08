@@ -43,10 +43,16 @@ static void analog_filter_resetS(uint8_t channel)
   adc_smp_filtered[channel] = adc_smp_raw[channel] * 16;
 }
 
-void analog_filter_reset(uint8_t channel)
+void analog_filter_reset(uint16_t channels)
 {
   chSysLock();
-  analog_filter_resetS(channel);
+  for(uint8_t i = 0; i <= 15; ++i)
+  {
+    if(channels & (1 << i))
+    {
+      analog_filter_resetS(i);
+    }
+  }
   chSysUnlock();
 }
 

@@ -207,12 +207,12 @@
                                      PIN_OSPEED_VERYLOW(GPIOA_SWDCLK) |      \
                                      PIN_OSPEED_VERYLOW(GPIOA_LED_B))
 #define VAL_GPIOA_PUPDR             (PIN_PUPDR_FLOATING(GPIOA_PU_OFF) |        \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_ATS) |         \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_KTS) |     \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_VTS) |     \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_STS) |         \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_FB1) |     \
-                                     PIN_PUPDR_PULLDOWN(GPIOA_FB2) |        \
+                                     PIN_PUPDR_FLOATING(GPIOA_ATS) |         \
+                                     PIN_PUPDR_FLOATING(GPIOA_KTS) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_VTS) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_STS) |         \
+                                     PIN_PUPDR_FLOATING(GPIOA_FB1) |     \
+                                     PIN_PUPDR_FLOATING(GPIOA_FB2) |        \
                                      PIN_PUPDR_FLOATING(GPIOA_LED_A) |        \
                                      PIN_PUPDR_FLOATING(GPIOA_ODSW3) |         \
                                      PIN_PUPDR_FLOATING(GPIOA_UART1_TX) |         \
