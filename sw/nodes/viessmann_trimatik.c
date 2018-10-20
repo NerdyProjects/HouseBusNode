@@ -91,9 +91,24 @@ static void burner(uint8_t enable)
   palWritePad(GPIOA, GPIOA_K1_FIRE, enable ? PAL_LOW : PAL_HIGH);
 }
 
+static uint8_t burnerState(void)
+{
+  return palReadPad(GPIOA, GPIOA_K1_FIRE) ? 1 : 0;
+}
+
 static void circulation(uint8_t enable)
 {
   palWritePad(GPIOA, GPIOA_K2_20A, enable ? PAL_LOW : PAL_HIGH);
+}
+
+static uint8_t circulationState(void)
+{
+  return palReadPad(GPIOA, GPIOA_K2_20A) ? 1 : 0;
+}
+
+static uint8_t senseState(void)
+{
+  return palReadPad(GPIOB, GPIOB_SENSE) ? 1 : 0;
 }
 
 static void analog_pullup(uint8_t enable)
@@ -199,6 +214,22 @@ void debug_analog(void)
   node_debug(LOG_LEVEL_DEBUG, "TRIMATIK_ADC", dbgbuf);
 }
 
+static void broadcast_heater_status(int32_t temp_out, int32_t temp_burner, int32_t temp_flow, uint8_t circulation, uint8_t burner)
+{
+  static uint8_t transfer_id = 0;
+  uint8_t buffer[8];
+  canardEncodeScalar(buffer, 0, 19, &temp_out);
+  canardEncodeScalar(buffer, 19, 19, &temp_burner);
+  canardEncodeScalar(buffer, 38, 19, &temp_flow);
+  canardEncodeScalar(buffer, 57, 1, &circulation);
+  canardEncodeScalar(buffer, 58, 1, &burner);
+
+  canardLockBroadcast(&canard,
+      0xb353aa603aedd4c8,
+      20008, &transfer_id,
+      CANARD_TRANSFER_PRIORITY_LOW, buffer, sizeof(buffer));
+}
+
 void app_fast_tick(void)
 {
   {
@@ -265,6 +296,8 @@ void app_fast_tick(void)
       if(key[KEY_MODE] == KEY_MODE_DEBUG)
       {
         debug_analog();
+        /* temporary debug raw temperature values */
+        broadcast_heater_status(adc_smp_filtered[1], adc_smp_filtered[2], adc_smp_filtered[3], burnerState(), senseState());
       }
       analog_pullup(0);
     }
@@ -276,11 +309,14 @@ void app_tick(void)
   static uint8_t led_count = 0;
   analog_pullup(1);
   analog_evaluate_in_ticks = ANALOG_FILTER_TICKS;
-  debug_keys();
   led_a(led_count & 1);
   led_b(led_count & 2);
   led_count++;
-  burner(key[1] == 6);
-  circulation(key[3] == 1);
+  if(key[KEY_MODE] == KEY_MODE_DEBUG)
+  {
+    debug_keys();
+    burner(key[KEY_SLOPE] & 1);
+    circulation(key[KEY_SLOPE] & 2);
+  }
 }
 #endif

@@ -1,0 +1,5 @@
+int19 temperature_outside
+int19 temperature_burner
+int19 temperature_flow
+bool circulation
+bool burner
