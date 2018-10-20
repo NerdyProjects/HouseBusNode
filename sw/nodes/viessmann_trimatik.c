@@ -43,12 +43,23 @@ typedef struct {
 
 enum
 {
-  KEY_MODE = 1
+  KEY_MODE = 1,
+  KEY_DAY = 0,
+  KEY_NIGHT = 2,
+  KEY_WATER = 4,
+  KEY_SLOPE = 3,
+  KEY_OFFSET = 5
 };
 
 enum
 {
-  KEY_MODE_DEBUG = 6
+  KEY_MODE_OFF = 0,
+  KEY_MODE_DAY_OFF = 1,
+  KEY_MODE_DAY_NIGHT = 2,
+  KEY_MODE_DAY_DAY = 3,
+  KEY_MODE_NIGHT_HIGHT = 4,
+  KEY_MODE_WATER_ONLY = 5,
+  KEY_MODE_DEBUG = 6,
 };
 
 static correction_coefficient_t pt500[3];
@@ -138,6 +149,13 @@ static int16_t pt500_adc_to_centicelsius(uint16_t raw_adc, correction_coefficien
    * 33910 33770 33935
    * 64 degrees burner/pipe:
    * 33910 35620 36420
+   * (following measurements in oct/2018 with averaging a lot of values)
+   * basement 13-14: ** 33232 33334
+   * 33289 (outside: 14.1 degrees)
+   * 33276 (outside; 13.2 degrees)
+   * 33261 (outside: 12.8 degrees)
+   * 33213 (outside: 12.2 degrees)
+   * 33056 (outside: ~10 degrees)
    * (results seem really bad :( )
    */
   float u = qfp_int2float(raw_adc);
