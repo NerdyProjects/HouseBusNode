@@ -71,7 +71,7 @@ static void adcFilterCallback(ADCDriver *adcp, adcsample_t *buffer, size_t n)
   {
     for(int i = 0; i < ANALOG_CHANNELS; ++i)
     {
-      uint32_t smp = adc_smp_filtered[i] / 16;
+      uint32_t smp = (adc_smp_filtered[i] + 8) / 16;
       adc_smp_filtered[i] = buffer[i] + 15*smp;
     }
   }
