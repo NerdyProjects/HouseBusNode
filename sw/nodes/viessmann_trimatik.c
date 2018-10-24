@@ -63,7 +63,15 @@ enum
 };
 
 static correction_coefficient_t pt500[3];
+/* slope of heating curve: Adjusts steepness */
+static float slope;
+/* offset of heating curve: Adjusts constant offset */
+static float offset;
+
 static int16_t temperature[3];
+/* raw adc values extended to 32 bit for higher filter precision. A second slow IIR filter implemented here */
+static uint32_t adc_double_filtered[3];
+
 /* keys:
  * 0 2 4
  * 1 3 5
@@ -82,9 +90,11 @@ static uint8_t key_next[6];
 
 /* slowest filter needs ~30 ms to settle, that is 6 5ms ticks.
  * add one each for synchronisation and AD conversion
- * and 5 for digital filter reset/settling */
-#define ANALOG_FILTER_TICKS 13
-volatile uint8_t analog_evaluate_in_ticks;
+ * and 6 for digital filter reset/settling
+ * as the results are still quite noisy, add a second low pass digital filter stage */
+#define ANALOG_FILTER_TICKS 14
+#define ANALOG_FILTER_RESET 9
+volatile uint8_t analog_tick = ANALOG_FILTER_TICKS;
 
 static void burner(uint8_t enable)
 {
@@ -230,6 +240,13 @@ static void broadcast_heater_status(int32_t temp_out, int32_t temp_burner, int32
       CANARD_TRANSFER_PRIORITY_LOW, buffer, sizeof(buffer));
 }
 
+static void analog_to_temperature(uint16_t *adc, int16_t *temperature, correction_coefficient_t *coef)
+{
+  temperature[0] = pt500_adc_to_centicelsius(adc[0], coef);
+  temperature[1] = pt500_adc_to_centicelsius(adc[1], coef + 1);
+  temperature[2] = pt500_adc_to_centicelsius(adc[2], coef + 2);
+}
+
 void app_fast_tick(void)
 {
   {
@@ -281,40 +298,83 @@ void app_fast_tick(void)
     }
   }
 
-  if(analog_evaluate_in_ticks)
+  /* For the filter stage we rely on the analog tick being reset once per second (tick) */
+  if(analog_tick < ANALOG_FILTER_TICKS)
   {
-    analog_evaluate_in_ticks--;
-    if(analog_evaluate_in_ticks == 5)
+    if(analog_tick == ANALOG_FILTER_RESET)
     {
       analog_filter_reset((1 << 1) | (1 << 2) | (1 << 3));
     }
-    if(analog_evaluate_in_ticks == 0)
+    if(analog_tick == ANALOG_FILTER_TICKS - 1)
     {
-      temperature[0] = pt500_adc_to_centicelsius(adc_smp_filtered[1], &pt500[0]);
-      temperature[1] = pt500_adc_to_centicelsius(adc_smp_filtered[2], &pt500[1]);
-      temperature[2] = pt500_adc_to_centicelsius(adc_smp_filtered[3], &pt500[2]);
+      if(adc_double_filtered[0] == 0) /* Filter has not been initialized */
+      {
+        adc_double_filtered[0] = adc_smp_filtered[1] * 65536;
+        adc_double_filtered[1] = adc_smp_filtered[2] * 65536;
+        adc_double_filtered[2] = adc_smp_filtered[3] * 65536;
+      } else
+      {
+        /* Outside temp: low pass, fg ~ 1/3600 Hz */
+        adc_double_filtered[0] = (((uint32_t)adc_smp_filtered[1] * 65536) + 256) / 512 + ((adc_double_filtered[0] + 256) / 512) * 511;
+        /* heating system temp: low pass */
+        adc_double_filtered[1] = (((uint32_t)adc_smp_filtered[2] * 65536) + 4) / 8 + ((adc_double_filtered[1] + 4) / 8) * 7;
+        adc_double_filtered[2] = (((uint32_t)adc_smp_filtered[3] * 65536) + 4) / 8 + ((adc_double_filtered[2] + 4) / 8) * 7;
+      }
       if(key[KEY_MODE] == KEY_MODE_DEBUG)
       {
-        debug_analog();
         /* temporary debug raw temperature values */
-        broadcast_heater_status(adc_smp_filtered[1], adc_smp_filtered[2], adc_smp_filtered[3], burnerState(), senseState());
+        broadcast_heater_status(adc_double_filtered[0]/65536, adc_double_filtered[1]/65536, adc_double_filtered[2]/65536, circulationState(), burnerState());
       }
       analog_pullup(0);
     }
+    analog_tick++;
   }
+}
+
+/* Returns outside temperature in 1/100 degrees celsius */
+static int16_t getOutsideTemperature(void)
+{
+  return adc_double_filtered[0];
+}
+
+/* Returns target temperature in 1/100 degrees celsius */
+static int16_t getTargetTemperature(void)
+{
+  return (13 + key[KEY_DAY]) * 100;
+}
+
+/* calculates the target burner temperature
+ * returns it in 1/100 degrees celsius
+ */
+void getTargetBurnerTemp(void)
+{
+  float outside = qfp_fdiv_fast(qfp_int2float(getOutsideTemperature()), 100);
+  float target = qfp_fdiv_fast(qfp_int2float(getTargetTemperature()), 100);
+
+  /* KT = neigung * 1.8317984 * (raumsoll-aussentemp)^0.8281902 + niveau + raumsoll */
+  /* 3x mul (165) + 1x sub(151) + 2x add (150) + 1x ln (829) + 1x exp (557)
+   * this function might need about 3000 clock cycles total, equalling ~63µs */
+  float exp = qfp_mul(0.8281902f, qfp_fln(qfp_fsub(target, outside)));
+  float result = qfp_fadd(qfp_fadd(
+      qfp_fmul(slope,
+      qfp_fmul(1.8317984f,
+          qfp_fexp(exp))),
+      offset), target);
+
+
+  return qfp_float2int(qfp_mul(result, 100));
 }
 
 void app_tick(void)
 {
   static uint8_t led_count = 0;
   analog_pullup(1);
-  analog_evaluate_in_ticks = ANALOG_FILTER_TICKS;
+  analog_tick = 0;
   led_a(led_count & 1);
   led_b(led_count & 2);
   led_count++;
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
-    debug_keys();
     burner(key[KEY_SLOPE] & 1);
     circulation(key[KEY_SLOPE] & 2);
   }
