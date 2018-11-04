@@ -33,8 +33,11 @@
 #include "qfplib.h"
 #include "../drivers/analog.h"
 #include "../node.h"
+#include "../config.h"
+#include "node.h"
 
 
+/* C0 + C1 * x + c2*x² */
 typedef struct {
   float c0;
   float c1;
@@ -62,11 +65,26 @@ enum
   KEY_MODE_DEBUG = 6,
 };
 
-static correction_coefficient_t pt500[3];
-/* slope of heating curve: Adjusts steepness */
-static float slope;
-/* offset of heating curve: Adjusts constant offset */
-static float offset;
+/* all coefficients the same for now, calculated on
+ * 33422  14.3
+33371  13.2
+33066  9.9
+32888  6.1
+32875  5.3
+32900 5.4
+37240  75
+ *
+ */
+static correction_coefficient_t pt500[3] = {
+    {-5.1655730295501045e+004, 1.5885092256958597e+000, 0},
+    {-5.1655730295501045e+004, 1.5885092256958597e+000, 0},
+    {-5.1655730295501045e+004, 1.5885092256958597e+000, 0}
+};
+
+static uint16_t flowHysteresisTurnOff;
+static uint16_t flowHysteresisTurnOn;
+/* heating mode disabled below this target temperature */
+static uint16_t minFlowTempToEnable;
 
 static int16_t temperature[3];
 /* raw adc values extended to 32 bit for higher filter precision. A second slow IIR filter implemented here */
@@ -182,32 +200,21 @@ static int16_t pt500_adc_to_centicelsius(uint16_t raw_adc, correction_coefficien
    * 33213 (outside: 12.2 degrees)
    * 33056 (outside: ~10 degrees)
    * (results seem really bad :( )
+   *
+   * after changing analog filter, we get:
+   * (outside):
+   * 33422 for 14.3 degrees
+   * 33371 for 13.2 degrees
+   * 33066 for 9.9 degrees
+   * 32888 for 6.1 degrees
+   * 32875 for 5.3 degrees
+   * (flow) 37240 for 75 degrees
+   * (flow) 33320 for 12 degrees
+
    */
   float u = qfp_int2float(raw_adc);
   float t = qfp_fadd(coef->c0, qfp_fadd(qfp_fmul(coef->c1, u), qfp_fmul(qfp_fmul(u, u), coef->c2)));
   return qfp_float2int(t);
-}
-
-
-
-void app_init(void)
-{
-  /* GPIOs are setup in board.h configuration globally (at least for now) */
-
-  /* Key GPIOs */
-  palSetPadMode(GPIOB, GPIOB_SW_C12, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetPadMode(GPIOB, GPIOB_SW_C34, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetPadMode(GPIOB, GPIOB_SW_C56, PAL_MODE_OUTPUT_PUSHPULL);
-  palClearPort(GPIOB, PAL_PORT_BIT(GPIOB_SW_C12) | PAL_PORT_BIT(GPIOB_SW_C34) | PAL_PORT_BIT(GPIOB_SW_C56));
-  palSetPadMode(GPIOA, GPIOA_SW_B1_135, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOA, GPIOA_SW_B2_135, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOB, GPIOB_SW_B0_135, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOB, GPIOB_SW_B3_135, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOC, GPIOC_SW_B0_246, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOC, GPIOC_SW_B1_246, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOF, GPIOF_SW_B2_246, PAL_MODE_INPUT_PULLDOWN);
-  palSetPadMode(GPIOF, GPIOF_SW_B3_246, PAL_MODE_INPUT_PULLDOWN);
-  palSetPad(GPIOB, GPIOB_SW_C12);
 }
 
 void debug_keys(void)
@@ -224,27 +231,23 @@ void debug_analog(void)
   node_debug(LOG_LEVEL_DEBUG, "TRIMATIK_ADC", dbgbuf);
 }
 
-static void broadcast_heater_status(int32_t temp_out, int32_t temp_burner, int32_t temp_flow, uint8_t circulation, uint8_t burner)
+static void broadcast_heater_status(int16_t temp_out, int16_t temp_burner, int16_t temp_flow, uint8_t circulation, uint8_t burner, uint8_t burnerActuallyFiring, int16_t temp_flow_target)
 {
   static uint8_t transfer_id = 0;
   uint8_t buffer[8];
-  canardEncodeScalar(buffer, 0, 19, &temp_out);
-  canardEncodeScalar(buffer, 19, 19, &temp_burner);
-  canardEncodeScalar(buffer, 38, 19, &temp_flow);
-  canardEncodeScalar(buffer, 57, 1, &circulation);
-  canardEncodeScalar(buffer, 58, 1, &burner);
+  /* temperatures: -163.84 .. +163.83 -> 15 bit each */
+  canardEncodeScalar(buffer, 0, 15, &temp_out);
+  canardEncodeScalar(buffer, 15, 15, &temp_burner);
+  canardEncodeScalar(buffer, 30, 15, &temp_flow);
+  canardEncodeScalar(buffer, 45, 15, &temp_flow_target);
+  canardEncodeScalar(buffer, 60, 1, &circulation);
+  canardEncodeScalar(buffer, 61, 1, &burner);
+  canardEncodeScalar(buffer, 62, 1, &burnerActuallyFiring);
 
   canardLockBroadcast(&canard,
-      0xb353aa603aedd4c8,
+      0x62cd3c11cab620ca,
       20008, &transfer_id,
       CANARD_TRANSFER_PRIORITY_LOW, buffer, sizeof(buffer));
-}
-
-static void analog_to_temperature(uint16_t *adc, int16_t *temperature, correction_coefficient_t *coef)
-{
-  temperature[0] = pt500_adc_to_centicelsius(adc[0], coef);
-  temperature[1] = pt500_adc_to_centicelsius(adc[1], coef + 1);
-  temperature[2] = pt500_adc_to_centicelsius(adc[2], coef + 2);
 }
 
 void app_fast_tick(void)
@@ -323,8 +326,13 @@ void app_fast_tick(void)
       if(key[KEY_MODE] == KEY_MODE_DEBUG)
       {
         /* temporary debug raw temperature values */
-        broadcast_heater_status(adc_double_filtered[0]/65536, adc_double_filtered[1]/65536, adc_double_filtered[2]/65536, circulationState(), burnerState());
+        broadcast_heater_status(adc_double_filtered[0]/65536, adc_double_filtered[1]/65536, adc_double_filtered[2]/65536, circulationState(), burnerState(), 0, 0);
+      } else {
+        temperature[0] = pt500_adc_to_centicelsius(adc_double_filtered[0]/65536, &pt500[0]);
+        temperature[1] = pt500_adc_to_centicelsius(adc_double_filtered[1]/65536, &pt500[1]);
+        temperature[2] = pt500_adc_to_centicelsius(adc_double_filtered[2]/65536, &pt500[2]);
       }
+
       analog_pullup(0);
     }
     analog_tick++;
@@ -334,7 +342,7 @@ void app_fast_tick(void)
 /* Returns outside temperature in 1/100 degrees celsius */
 static int16_t getOutsideTemperature(void)
 {
-  return adc_double_filtered[0];
+  return temperature[0];
 }
 
 /* Returns target temperature in 1/100 degrees celsius */
@@ -343,26 +351,53 @@ static int16_t getTargetTemperature(void)
   return (13 + key[KEY_DAY]) * 100;
 }
 
+static float getCurveSlope(void)
+{
+  return qfp_fmul(0.2f, qfp_int2float(key[KEY_SLOPE]));
+}
+
+static float getCurveOffset(void)
+{
+  return qfp_int2float((int16_t)key[KEY_OFFSET] * 3 - 12);
+}
+
+static int16_t getFlowTemperature(void)
+{
+  return temperature[2];
+}
+
+static int16_t getBurnerTemperature(void)
+{
+  return temperature[3];
+}
+
 /* calculates the target burner temperature
  * returns it in 1/100 degrees celsius
  */
-void getTargetBurnerTemp(void)
+int16_t getTargetFlowTemperature(void)
 {
-  float outside = qfp_fdiv_fast(qfp_int2float(getOutsideTemperature()), 100);
-  float target = qfp_fdiv_fast(qfp_int2float(getTargetTemperature()), 100);
+  float outside = qfp_fdiv(qfp_int2float(getOutsideTemperature()), 100);
+  float target = qfp_fdiv(qfp_int2float(getTargetTemperature()), 100);
 
   /* KT = neigung * 1.8317984 * (raumsoll-aussentemp)^0.8281902 + niveau + raumsoll */
   /* 3x mul (165) + 1x sub(151) + 2x add (150) + 1x ln (829) + 1x exp (557)
    * this function might need about 3000 clock cycles total, equalling ~63µs */
-  float exp = qfp_mul(0.8281902f, qfp_fln(qfp_fsub(target, outside)));
+  float exp = qfp_fmul(0.8281902f, qfp_fln(qfp_fsub(target, outside)));
   float result = qfp_fadd(qfp_fadd(
-      qfp_fmul(slope,
+      qfp_fmul(getCurveSlope(),
       qfp_fmul(1.8317984f,
           qfp_fexp(exp))),
-      offset), target);
+      getCurveOffset()), target);
 
 
-  return qfp_float2int(qfp_mul(result, 100));
+  return qfp_float2int(qfp_fmul(result, 100));
+}
+
+static void read_config(void)
+{
+  flowHysteresisTurnOff = config_get_uint(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_OFF);
+  flowHysteresisTurnOn = config_get_uint(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_ON);
+  minFlowTempToEnable = config_get_uint(CONFIG_HEATER_FLOW_MIN_TARGET_TEMP);
 }
 
 void app_tick(void)
@@ -373,10 +408,70 @@ void app_tick(void)
   led_a(led_count & 1);
   led_b(led_count & 2);
   led_count++;
+  int16_t targetFlowTemp = getTargetFlowTemperature();
+  int16_t flowTemp = getFlowTemperature();
+  int16_t burnerTemp = getBurnerTemperature();
+  static uint8_t burning;
+  uint8_t newBurnerState = 0;
+  uint8_t newCirculationState = 0;
+
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
-    burner(key[KEY_SLOPE] & 1);
-    circulation(key[KEY_SLOPE] & 2);
+    newBurnerState = key[KEY_SLOPE] & 1;
+    newCirculationState = key[KEY_SLOPE] & 2;
+  } else if(key[KEY_MODE] == KEY_MODE_DAY_NIGHT)
+  {
+    if(targetFlowTemp > minFlowTempToEnable)
+    {
+      newCirculationState = 1;
+      newBurnerState = burning;
+      if(!burning)
+      {
+        if(flowTemp < (targetFlowTemp - flowHysteresisTurnOn))
+        {
+          newBurnerState = 1;
+        }
+      }
+      if(burning)
+      {
+        if(flowTemp > (targetFlowTemp + flowHysteresisTurnOff))
+        {
+          newBurnerState = 0;
+        }
+      }
+    }
   }
+  burner(newBurnerState);
+  circulation(newCirculationState);
+  broadcast_heater_status(temperature[0], temperature[1], temperature[2], newCirculationState, newBurnerState, newBurnerState, targetFlowTemp);
+  burning = newBurnerState;
+}
+
+
+void app_init(void)
+{
+  /* GPIOs are setup in board.h configuration globally (at least for now) */
+
+  /* Key GPIOs */
+  palSetPadMode(GPIOB, GPIOB_SW_C12, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetPadMode(GPIOB, GPIOB_SW_C34, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetPadMode(GPIOB, GPIOB_SW_C56, PAL_MODE_OUTPUT_PUSHPULL);
+  palClearPort(GPIOB, PAL_PORT_BIT(GPIOB_SW_C12) | PAL_PORT_BIT(GPIOB_SW_C34) | PAL_PORT_BIT(GPIOB_SW_C56));
+  palSetPadMode(GPIOA, GPIOA_SW_B1_135, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOA, GPIOA_SW_B2_135, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOB, GPIOB_SW_B0_135, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOB, GPIOB_SW_B3_135, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOC, GPIOC_SW_B0_246, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOC, GPIOC_SW_B1_246, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOF, GPIOF_SW_B2_246, PAL_MODE_INPUT_PULLDOWN);
+  palSetPadMode(GPIOF, GPIOF_SW_B3_246, PAL_MODE_INPUT_PULLDOWN);
+  palSetPad(GPIOB, GPIOB_SW_C12);
+
+  read_config();
+}
+
+void app_config_update(void)
+{
+  read_config();
 }
 #endif

@@ -304,6 +304,7 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
         payloadExtractArray(transfer, 3, transfer->payload_head[2], str);
         config_set(config_id, str, transfer->payload_head[2]);
       }
+      app_config_update();
     }
     /* Always perform get for response: Actual/default/min/max value */
     switch (config_get_param_type(config_id))
@@ -514,7 +515,8 @@ static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t
   /* data contains:
    *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
    *  pressure in 10^-2 mbar (mbar = pres / 100) [30000-110000] -> 18 bit
-   *  temperature in centidegrees (degree = temp / 100) [-4000..85000] -> 19 bit
+   *  temperature in centidegrees (degree = temp / 100) [-4000..8500] -> 19 bit
+   *  ToDo: Temperature only needs 15 bits
    */
   memset(buffer, 0, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
   canardEncodeScalar(buffer, 0, 2, &validFlags);

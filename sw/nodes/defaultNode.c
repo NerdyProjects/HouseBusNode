@@ -14,3 +14,8 @@ void __attribute__((weak)) app_fast_tick(void)
 {
 
 }
+
+void __attribute__((weak)) app_config_update(void)
+{
+
+}

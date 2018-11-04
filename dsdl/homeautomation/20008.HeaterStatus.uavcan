@@ -1,5 +1,7 @@
-int19 temperature_outside
-int19 temperature_burner
-int19 temperature_flow
+int15 temperature_outside
+int15 temperature_burner
+int15 temperature_flow
+int15 temperature_flow_target
 bool circulation
 bool burner
+bool burner_actually_firing

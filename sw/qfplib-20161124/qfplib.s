@@ -18,7 +18,7 @@
 
 .equ include_faster,0        @ include fast divide and square root?
 .equ include_conversions,1   @ include float <-> fixed point conversion functions?
-.equ include_scientific,0    @ include trignometic, exponential etc. functions?
+.equ include_scientific,1    @ include trignometic, exponential etc. functions?
 
 .ifndef include_faster
 .equ include_faster,1

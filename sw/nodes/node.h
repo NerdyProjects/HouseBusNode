@@ -11,6 +11,7 @@
 void app_fast_tick(void);
 void app_init(void);
 void app_tick(void);
+void app_config_update(void);
 
 
 #endif /* NODE_H_ */
