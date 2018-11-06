@@ -84,10 +84,15 @@ static correction_coefficient_t pt500[3] = {
     {8.1554856353217765e+004, -6.0174207218510478e+000, 1.0817223702997432e-004}
 };
 
-static uint16_t flowHysteresisTurnOff;
-static uint16_t flowHysteresisTurnOn;
+static int16_t flowHysteresisTurnOff;
+static int16_t flowHysteresisTurnOn;
 /* heating mode disabled below this target temperature */
 static uint16_t minFlowTempToEnable;
+
+/* delay of burner request to actual fire in seconds.
+ * For statistics; might be used for regulation as well
+ */
+#define BURNER_REQUEST_DELAY 50
 
 static int16_t temperature[3];
 /* raw adc values extended to 32 bit for higher filter precision. A second slow IIR filter implemented here */
@@ -371,7 +376,7 @@ static int16_t getFlowTemperature(void)
 
 static int16_t getBurnerTemperature(void)
 {
-  return temperature[3];
+  return temperature[1];
 }
 
 /* calculates the target burner temperature
@@ -398,8 +403,8 @@ int16_t getTargetFlowTemperature(void)
 
 static void read_config(void)
 {
-  flowHysteresisTurnOff = config_get_uint(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_OFF);
-  flowHysteresisTurnOn = config_get_uint(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_ON);
+  flowHysteresisTurnOff = config_get_int(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_OFF);
+  flowHysteresisTurnOn = config_get_int(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_ON);
   minFlowTempToEnable = config_get_uint(CONFIG_HEATER_FLOW_MIN_TARGET_TEMP);
 }
 
@@ -415,8 +420,10 @@ void app_tick(void)
   int16_t flowTemp = getFlowTemperature();
   int16_t burnerTemp = getBurnerTemperature();
   static uint8_t burning;
+  static systime_t lastBurnerRequestStart;
   uint8_t newBurnerState = 0;
   uint8_t newCirculationState = 0;
+  int16_t burnerLidFor = (burning ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
 
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
@@ -437,16 +444,30 @@ void app_tick(void)
       }
       if(burning)
       {
-        if(flowTemp > (targetFlowTemp + flowHysteresisTurnOff))
+        if(flowTemp > (targetFlowTemp + flowHysteresisTurnOff) ||
+           burnerTemp > (targetFlowTemp + flowHysteresisTurnOff))
         {
           newBurnerState = 0;
         }
       }
     }
+  } else if(key[KEY_MODE] == KEY_MODE_DAY_OFF)
+  { /* this mode is temporarily used to "shut down" in the night */
+    if(flowTemp > minFlowTempToEnable)
+    { /* Let circulation run until heating system cooled down */
+      newCirculationState = 1;
+    }
+  }
+  if(newBurnerState && !burning) {
+    /* Detection of burner request */
+    lastBurnerRequestStart = chVTGetSystemTime();
   }
   burner(newBurnerState);
+  /* actual burning starts 50 seconds after start signal (Abgasklappe, Feuerungsautomat) */
+  /* gas usage for 32 kW Atola at Kanthaus: 0.05m³ in 50 seconds -> 0.001m³/s or 3.6m³/h
+   * gas usage measured in a 50 second interval by looking at counter. Measuring start a few seconds after burner start. */
   circulation(newCirculationState);
-  broadcast_heater_status(temperature[0], temperature[1], temperature[2], newCirculationState, newBurnerState, newBurnerState, targetFlowTemp);
+  broadcast_heater_status(temperature[0], temperature[1], temperature[2], newCirculationState, newBurnerState, burnerLidFor > 0, targetFlowTemp);
   burning = newBurnerState;
 }
 

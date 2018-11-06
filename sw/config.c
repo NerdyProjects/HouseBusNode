@@ -126,6 +126,19 @@ uint32_t config_get_uint(config_param_t param) {
   return res;
 }
 
+/* returns a signed integer configuration parameter.
+ * convenience method to use the parameter as return value.
+ */
+int32_t config_get_int(config_param_t param)
+{
+  int32_t res = 0;
+  if (config_get_param_size(param) <= 4)
+  {
+    config_get(param, &res, NULL);
+  }
+  return res;
+}
+
 /* writes a configuration parameter.
  * The caller can supply a length up to the reserved space of the parameter field.
  * If given size is bigger than the actual parameter size, excess data is silently ignored.

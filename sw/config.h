@@ -92,6 +92,7 @@ int config_get_param_type(config_param_t param);
 int config_get(config_param_t param, void *dst, uint8_t *valid);
 int config_get_name(config_param_t param, uint8_t *dst);
 uint32_t config_get_uint(config_param_t param);
+int32_t config_get_int(config_param_t param);
 int config_set(config_param_t param, void *src, uint8_t size);
 int config_set_uint(config_param_t param, uint32_t v);
 int config_get_id_by_name(uint8_t *name, uint8_t name_len);
