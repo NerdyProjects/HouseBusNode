@@ -5,8 +5,8 @@
  *      Author: matthias
  */
 
-#ifndef NODE_H_
-#define NODE_H_
+#ifndef NODES_NODE_H_
+#define NODES_NODE_H_
 
 void app_fast_tick(void);
 void app_init(void);
@@ -14,4 +14,4 @@ void app_tick(void);
 void app_config_update(void);
 
 
-#endif /* NODE_H_ */
+#endif /* NODES_NODE_H_ */

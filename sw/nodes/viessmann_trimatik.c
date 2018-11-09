@@ -88,6 +88,15 @@ static int16_t flowHysteresisTurnOff;
 static int16_t flowHysteresisTurnOn;
 /* heating mode disabled below this target temperature */
 static uint16_t minFlowTempToEnable;
+/* circulation stopped below this actual temperature */
+static uint16_t minTempToEnableCirculation;
+/* Stop burner after this time when burner temp increases over flow temp */
+/* Background: Burner temperature is strongly affected by return flow temperature. In normal load situation, it
+ * is always a bit below the actual flow temperature.
+ */
+static uint16_t burnerStopTempRiseTime;
+/* When burner stops, it is not allowed to start within given timeframe */
+static uint16_t burnerMinOffTime;
 
 /* delay of burner request to actual fire in seconds.
  * For statistics; might be used for regulation as well
@@ -406,6 +415,8 @@ static void read_config(void)
   flowHysteresisTurnOff = config_get_int(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_OFF);
   flowHysteresisTurnOn = config_get_int(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_ON);
   minFlowTempToEnable = config_get_uint(CONFIG_HEATER_FLOW_MIN_TARGET_TEMP);
+  minTempToEnableCirculation = config_get_uint(CONFIG_HEATER_FLOW_MIN_CIRCULATION_TEMP);
+  burnerStopTempRiseTime = config_get_uint(CONFIG_HEATER_BURNER_TEMP_RISE_MIN_TIME);
 }
 
 void app_tick(void)
@@ -421,6 +432,7 @@ void app_tick(void)
   int16_t burnerTemp = getBurnerTemperature();
   static uint8_t burning;
   static systime_t lastBurnerRequestStart;
+  static systime_t lastBurnerStop;
   uint8_t newBurnerState = 0;
   uint8_t newCirculationState = 0;
   int16_t burnerLidFor = (burning ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
@@ -433,7 +445,10 @@ void app_tick(void)
   {
     if(targetFlowTemp > minFlowTempToEnable)
     {
-      newCirculationState = 1;
+      if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
+      {
+        newCirculationState = 1;
+      }
       newBurnerState = burning;
       if(!burning)
       {
@@ -449,18 +464,32 @@ void app_tick(void)
         {
           newBurnerState = 0;
         }
+        if(burnerTemp > flowTemp && burnerLidFor > burnerStopTempRiseTime)
+        {
+          newBurnerState = 0;
+        }
       }
     }
   } else if(key[KEY_MODE] == KEY_MODE_DAY_OFF)
   { /* this mode is temporarily used to "shut down" in the night */
-    if(flowTemp > minFlowTempToEnable)
+    if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
     { /* Let circulation run until heating system cooled down */
       newCirculationState = 1;
     }
   }
+  if(!newBurnerState && burning) {
+    lastBurnerStop = chVTGetSystemTime();
+  }
   if(newBurnerState && !burning) {
-    /* Detection of burner request */
-    lastBurnerRequestStart = chVTGetSystemTime();
+    if(TIME_I2S(chVTTimeElapsedSinceX((lastBurnerStop))) < burnerMinOffTime)
+    {
+      /* disable burner request in off time */
+      newBurnerState = 0;
+    } else {
+      /* Detection of burner request */
+      lastBurnerRequestStart = chVTGetSystemTime();
+    }
+
   }
   burner(newBurnerState);
   /* actual burning starts 50 seconds after start signal (Abgasklappe, Feuerungsautomat) */
