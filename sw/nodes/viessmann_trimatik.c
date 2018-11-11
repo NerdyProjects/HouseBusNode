@@ -98,6 +98,11 @@ static uint16_t burnerStopTempRiseTime;
 /* When burner stops, it is not allowed to start within given timeframe */
 static uint16_t burnerMinOffTime;
 
+/* when burning temperature is considered for thresholds, how long should the circulation be running before?
+ * short: What's the maximum accepted time it takes from hot water to reach the flow?
+ */
+static uint16_t circulationMinOnTimeForThreshold;
+
 /* delay of burner request to actual fire in seconds.
  * For statistics; might be used for regulation as well
  */
@@ -417,6 +422,8 @@ static void read_config(void)
   minFlowTempToEnable = config_get_uint(CONFIG_HEATER_FLOW_MIN_TARGET_TEMP);
   minTempToEnableCirculation = config_get_uint(CONFIG_HEATER_FLOW_MIN_CIRCULATION_TEMP);
   burnerStopTempRiseTime = config_get_uint(CONFIG_HEATER_BURNER_TEMP_RISE_MIN_TIME);
+  burnerMinOffTime = config_get_uint(CONFIG_HEATER_BURNER_MIN_OFF_TIME);
+  circulationMinOnTimeForThreshold = config_get_uint(CONFIG_HEATER_CIRCULATION_MIN_ON_FOR_THRESHOLD);
 }
 
 void app_tick(void)
@@ -430,43 +437,46 @@ void app_tick(void)
   int16_t targetFlowTemp = getTargetFlowTemperature();
   int16_t flowTemp = getFlowTemperature();
   int16_t burnerTemp = getBurnerTemperature();
-  static uint8_t burning;
+  static uint8_t currentBurnerState;
+  static uint8_t currentCirculationState;
   static systime_t lastBurnerRequestStart;
   static systime_t lastBurnerStop;
-  uint8_t newBurnerState = 0;
-  uint8_t newCirculationState = 0;
-  int16_t burnerLidFor = (burning ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
+  static systime_t lastCirculationStart;
+  uint8_t nextBurnerState = 0;
+  uint8_t nextCirculationState = 0;
+  int16_t burnerLidFor = (currentBurnerState ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
+  int32_t circulationRunningFor = (currentCirculationState ? TIME_I2S(chVTTimeElapsedSinceX(lastCirculationStart)) : 0);
 
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
-    newBurnerState = key[KEY_SLOPE] & 1;
-    newCirculationState = key[KEY_SLOPE] & 2;
+    nextBurnerState = key[KEY_SLOPE] & 1;
+    nextCirculationState = key[KEY_SLOPE] & 2;
   } else if(key[KEY_MODE] == KEY_MODE_DAY_NIGHT)
   {
     if(targetFlowTemp > minFlowTempToEnable)
     {
       if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
       {
-        newCirculationState = 1;
+        nextCirculationState = 1;
       }
-      newBurnerState = burning;
-      if(!burning)
+      nextBurnerState = currentBurnerState;
+      if(!currentBurnerState)
       {
         if(flowTemp < (targetFlowTemp - flowHysteresisTurnOn))
         {
-          newBurnerState = 1;
+          nextBurnerState = 1;
         }
       }
-      if(burning)
+      if(currentBurnerState)
       {
         if(flowTemp > (targetFlowTemp + flowHysteresisTurnOff) ||
            burnerTemp > (targetFlowTemp + flowHysteresisTurnOff))
         {
-          newBurnerState = 0;
+          nextBurnerState = 0;
         }
-        if(burnerTemp > flowTemp && burnerLidFor > burnerStopTempRiseTime)
+        if(burnerTemp > flowTemp && burnerLidFor > burnerStopTempRiseTime && circulationRunningFor > circulationMinOnTimeForThreshold)
         {
-          newBurnerState = 0;
+          nextBurnerState = 0;
         }
       }
     }
@@ -474,30 +484,34 @@ void app_tick(void)
   { /* this mode is temporarily used to "shut down" in the night */
     if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
     { /* Let circulation run until heating system cooled down */
-      newCirculationState = 1;
+      nextCirculationState = 1;
     }
   }
-  if(!newBurnerState && burning) {
-    lastBurnerStop = chVTGetSystemTime();
+  if(!nextBurnerState && currentBurnerState) {
+    lastBurnerStop = chVTGetSystemTimeX();
   }
-  if(newBurnerState && !burning) {
+  if(nextBurnerState && !currentBurnerState) {
     if(TIME_I2S(chVTTimeElapsedSinceX((lastBurnerStop))) < burnerMinOffTime)
     {
       /* disable burner request in off time */
-      newBurnerState = 0;
+      nextBurnerState = 0;
     } else {
       /* Detection of burner request */
-      lastBurnerRequestStart = chVTGetSystemTime();
+      lastBurnerRequestStart = chVTGetSystemTimeX();
     }
 
   }
-  burner(newBurnerState);
+  if(nextCirculationState && !currentCirculationState) {
+    lastCirculationStart = chVTGetSystemTimeX();
+  }
+  burner(nextBurnerState);
   /* actual burning starts 50 seconds after start signal (Abgasklappe, Feuerungsautomat) */
   /* gas usage for 32 kW Atola at Kanthaus: 0.05m³ in 50 seconds -> 0.001m³/s or 3.6m³/h
    * gas usage measured in a 50 second interval by looking at counter. Measuring start a few seconds after burner start. */
-  circulation(newCirculationState);
-  broadcast_heater_status(temperature[0], temperature[1], temperature[2], newCirculationState, newBurnerState, burnerLidFor > 0, targetFlowTemp);
-  burning = newBurnerState;
+  circulation(nextCirculationState);
+  broadcast_heater_status(temperature[0], temperature[1], temperature[2], nextCirculationState, nextBurnerState, burnerLidFor > 0, targetFlowTemp);
+  currentBurnerState = nextBurnerState;
+  currentCirculationState = nextCirculationState;
 }
 
 
