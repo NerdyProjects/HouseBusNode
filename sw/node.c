@@ -401,6 +401,7 @@ static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
   {
     onParamGetSet(ins, transfer);
   }
+  app_on_transfer_received(ins, transfer);
 #ifndef BOOTLOADER
   if ((transfer->transfer_type == CanardTransferTypeBroadcast)
         && (transfer->data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))

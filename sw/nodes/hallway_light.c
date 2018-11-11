@@ -1,5 +1,3 @@
-#ifdef NODE_HALLWAY_LIGHT
-
 #include "hal.h"
 #include "../node.h"
 #include "../config.h"
@@ -304,6 +302,3 @@ void app_tick(void)
 {
 
 }
-
-
-#endif

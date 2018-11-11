@@ -87,8 +87,8 @@ ifeq ($(BOOTLOADER),1)
   PROJECT = bootloader
   BUILDDIR=build/bootloader
 else
-  PROJECT = application
-  BUILDDIR=build/application
+  PROJECT = $(NODE)
+  BUILDDIR=build/$(NODE)
 endif
 
 
@@ -133,6 +133,14 @@ ifeq ($(BOOTLOADER),1)
 CSRC += firmware_update.c \
 				bootloader.c
 else
+ifeq ($(NODE),VIESSMANN_TRIMATIK)
+CSRC += nodes/viessmann_trimatik.c \
+				time_data.c
+endif
+ifeq ($(NODE),HALLWAY_LIGHT)
+CSRC += nodes/hallway_light.c \
+				time_data.c
+endif
 CSRC += bme280_node.c \
         drivers/bme280.c \
         drivers/analog.c \
@@ -140,10 +148,7 @@ CSRC += bme280_node.c \
         conduction_sensor.c \
         eventcount.c \
         dimmer.c \
-        pump_receiver.c \
-        time_data.c \
-        nodes/viessmann_trimatik.c \
-        nodes/hallway_light.c
+        pump_receiver.c
 endif
 
 

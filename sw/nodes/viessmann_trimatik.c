@@ -28,12 +28,12 @@
  *
  */
 
-#ifdef NODE_VIESSMANN_TRIMATIK
 #include "hal.h"
 #include "qfplib.h"
 #include "../drivers/analog.h"
 #include "../node.h"
 #include "../config.h"
+#include "../time_data.h"
 #include "node.h"
 
 
@@ -541,4 +541,3 @@ void app_config_update(void)
 {
   read_config();
 }
-#endif
