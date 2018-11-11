@@ -103,6 +103,16 @@ static uint16_t burnerMinOffTime;
  */
 static uint16_t circulationMinOnTimeForThreshold;
 
+/* Temp 1 is active from time1Start to time1Stop. Otherwise, Temp 2 is active.
+ * Temp is seen as the "Normal" temperature, the offset from the switch selection is added.
+ * Times are encoded with minutes in the least significant byte and hours in the next more significant byte.:
+ * (you can calculate the time number in a calculator with: hours * 256 + minutes)
+ */
+static uint32_t time1Start;
+static uint32_t time1Stop;
+static int16_t time1Temp;
+static int16_t time2Temp;
+
 /* delay of burner request to actual fire in seconds.
  * For statistics; might be used for regulation as well
  */
@@ -368,9 +378,15 @@ static int16_t getOutsideTemperature(void)
 }
 
 /* Returns target temperature in 1/100 degrees celsius */
-static int16_t getTargetTemperature(void)
+static int16_t getTargetTemperature(uint8_t night)
 {
-  return (13 + key[KEY_DAY]) * 100;
+  if(night)
+  {
+    return (7 + key[KEY_NIGHT]) * 100;
+  } else {
+    return (13 + key[KEY_DAY]) * 100;
+  }
+
 }
 
 static float getCurveSlope(void)
@@ -396,10 +412,10 @@ static int16_t getBurnerTemperature(void)
 /* calculates the target burner temperature
  * returns it in 1/100 degrees celsius
  */
-int16_t getTargetFlowTemperature(void)
+int16_t getTargetFlowTemperature(int16_t targetTemperature)
 {
   float outside = qfp_fdiv(qfp_int2float(getOutsideTemperature()), 100);
-  float target = qfp_fdiv(qfp_int2float(getTargetTemperature()), 100);
+  float target = qfp_fdiv(qfp_int2float(targetTemperature), 100);
 
   /* KT = neigung * 1.8317984 * (raumsoll-aussentemp)^0.8281902 + niveau + raumsoll */
   /* 3x mul (165) + 1x sub(151) + 2x add (150) + 1x ln (829) + 1x exp (557)
@@ -424,6 +440,34 @@ static void read_config(void)
   burnerStopTempRiseTime = config_get_uint(CONFIG_HEATER_BURNER_TEMP_RISE_MIN_TIME);
   burnerMinOffTime = config_get_uint(CONFIG_HEATER_BURNER_MIN_OFF_TIME);
   circulationMinOnTimeForThreshold = config_get_uint(CONFIG_HEATER_CIRCULATION_MIN_ON_FOR_THRESHOLD);
+  time1Start = config_get_uint(CONFIG_HEATER_TIME_1_START);
+  time1Stop = config_get_uint(CONFIG_HEATER_TIME_1_STOP);
+  time1Temp = config_get_int(CONFIG_HEATER_TIME_1_TEMP);
+  time2Temp = config_get_int(CONFIG_HEATER_TIME_2_TEMP);
+}
+
+static uint8_t inTimeRange(start, stop)
+{
+  uint8_t current_h = time_hour;
+  uint8_t current_m = time_minute;
+  uint8_t start_h = (start >> 8) & 0x0FF;
+  uint8_t start_m = start & 0x0FF;
+  uint8_t stop_h = (stop >> 8) & 0x0FF;
+  uint8_t stop_m = stop & 0x0FF;
+
+  if(current_h > start_h && current_h < stop_h)
+  {
+    return 1;
+  }
+  if(current_h == start_h && current_m >= start_m)
+  {
+    return 1;
+  }
+  if(current_h == stop_h && current_m < stop_m)
+  {
+    return 1;
+  }
+  return 0;
 }
 
 void app_tick(void)
@@ -434,7 +478,7 @@ void app_tick(void)
   led_a(led_count & 1);
   led_b(led_count & 2);
   led_count++;
-  int16_t targetFlowTemp = getTargetFlowTemperature();
+  int16_t targetFlowTemp;
   int16_t flowTemp = getFlowTemperature();
   int16_t burnerTemp = getBurnerTemperature();
   static uint8_t currentBurnerState;
@@ -446,6 +490,13 @@ void app_tick(void)
   uint8_t nextCirculationState = 0;
   int16_t burnerLidFor = (currentBurnerState ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
   int32_t circulationRunningFor = (currentCirculationState ? TIME_I2S(chVTTimeElapsedSinceX(lastCirculationStart)) : 0);
+  if(inTimeRange(time1Start, time1Stop))
+  {
+    targetFlowTemp = getTargetFlowTemperature(getTargetTemperature(0) + time1Temp);
+  } else {
+    targetFlowTemp = getTargetFlowTemperature(getTargetTemperature(1) + time2Temp);
+  }
+
 
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
@@ -453,12 +504,12 @@ void app_tick(void)
     nextCirculationState = key[KEY_SLOPE] & 2;
   } else if(key[KEY_MODE] == KEY_MODE_DAY_NIGHT)
   {
+    if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
+    {
+      nextCirculationState = 1;
+    }
     if(targetFlowTemp > minFlowTempToEnable)
     {
-      if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
-      {
-        nextCirculationState = 1;
-      }
       nextBurnerState = currentBurnerState;
       if(!currentBurnerState)
       {
