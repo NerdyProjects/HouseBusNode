@@ -106,7 +106,7 @@ static uint16_t circulationMinOnTimeForThreshold;
 /* Temp 1 is active from time1Start to time1Stop. Otherwise, Temp 2 is active.
  * Temp is seen as the "Normal" temperature, the offset from the switch selection is added.
  * Times are encoded with minutes in the least significant byte and hours in the next more significant byte.:
- * (you can calculate the time number in a calculator with: hours * 256 + minutes)
+ * (you can calculate the time number in a calculator with hours * 256 + minutes)
  */
 static uint32_t time1Start;
 static uint32_t time1Stop;
