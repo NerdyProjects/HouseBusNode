@@ -35,4 +35,7 @@ int canardLockBroadcast(CanardInstance* ins,            ///< Library instance
                     const void* payload,            ///< Transfer payload
                     uint16_t payload_len);          ///< Length of the above, in bytes
 
+typedef void (*OnTransferReceivedCB)(CanardInstance* ins, CanardRxTransfer* transfer);
+
+#define REGISTER_TRANSFER(...)
 #endif /* NODE_H_ */

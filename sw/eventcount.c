@@ -81,3 +81,19 @@ uint8_t eventcount_is_present(void)
 {
   return EventcountPorts;
 }
+
+/*static void broadcast_eventcounts(uint32_t *eventcounts, uint8_t cnt)
+{
+  static uint8_t transfer_id = 0;
+  canardLockBroadcast(&canard,
+          HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_SIGNATURE,
+          HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_ID, &transfer_id,
+          CANARD_TRANSFER_PRIORITY_LOW, eventcounts, 4 * cnt);
+} */
+
+//if(eventcount_is_present())
+//    {
+//      uint32_t eventcounts[EVENTCOUNT_PORTS];
+//      uint8_t valid = eventcount_get_count(eventcounts);
+//      broadcast_eventcounts(eventcounts, valid);
+//    }

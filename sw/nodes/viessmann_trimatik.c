@@ -1,4 +1,3 @@
-
 /* Application to be used ass Viessmann Trimatik MC Elektronikbox replacement.
  * Use with Hausspielerei PCB.
  * Pinout:
@@ -33,7 +32,7 @@
 #include "../drivers/analog.h"
 #include "../node.h"
 #include "../config.h"
-#include "../time_data.h"
+#include "modules/time_data.h"
 #include "node.h"
 
 
@@ -591,4 +590,9 @@ void app_init(void)
 void app_config_update(void)
 {
   read_config();
+}
+
+void app_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+  time_data_on_transfer_received(ins, transfer);
 }

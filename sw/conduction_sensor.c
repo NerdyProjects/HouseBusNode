@@ -162,3 +162,23 @@ uint8_t conduction_num_sensors(void)
 {
   return conduction_present_num;
 }
+
+//static void broadcast_conduction_data(uint8_t error, uint8_t state, uint8_t num, uint8_t *quality)
+//{
+//  uint8_t buffer[HOMEAUTOMATION_CONDUCTION_SENSOR_MESSAGE_SIZE];
+//  static uint8_t transfer_id = 0;
+//  /* bit0: Error in data */
+//  buffer[0] = state; /* Bit 0-6: state */
+//  if(error)
+//  {
+//    buffer[0] |= 0x80; /* Bit 7: error */
+//  }
+//  for(int i = 0; i < num; ++i) {
+//    buffer[1+i] = quality[i];
+//  }
+//  canardLockBroadcast(&canard,
+//          HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_SIGNATURE,
+//          HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID, &transfer_id,
+//          CANARD_TRANSFER_PRIORITY_LOW, buffer, 1 + num);
+//}
+

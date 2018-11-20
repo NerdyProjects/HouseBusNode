@@ -18,12 +18,9 @@
 #include "firmware_update.h"
 #include "config.h"
 #include "drivers/analog.h"
-#include "conduction_sensor.h"
-#include "pump_receiver.h"
 #include "dimmer.h"
-#include "eventcount.h"
-#include "time_data.h"
 #include "nodes/node.h"
+#include "modules/time_data.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -35,10 +32,6 @@ static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used 
 event_source_t txrequest_event;
 
 systime_t NodeRestartAt;
-MUTEX_DECL(errorMtx);
-#define ERROR_MESSAGE_COUNT 8
-volatile uint32_t errorMessages[ERROR_MESSAGE_COUNT];
-volatile uint16_t errorCount;
 
 static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
 static uint8_t node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
@@ -376,51 +369,41 @@ static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfe
             transfer->priority, CanardResponse, &response, 1);
 }
 
+typedef struct {
+  uint8_t transfer_type;
+  uint16_t data_type_id;
+  uint64_t data_type_signature;
+  OnTransferReceivedCB cb;
+} ReceiveTransfer;
+
+
+#define REGISTER_TRANSFER(type, id, signature, cb) {type, id, signature, cb},
+ReceiveTransfer receiveTransfers[] = {
+#include "transfer_registrations.h"
+REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_GET_NODE_INFO_DATA_TYPE_ID, UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE, onGetNodeInfo)
+REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_RESTART_NODE_DATA_TYPE_ID, UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE, onRestartNode)
+REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID, UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE, onBeginFirmwareUpdate)
+{CanardTransferTypeRequest, UAVCAN_PARAM_GETSET_DATA_TYPE_ID, UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE, onParamGetSet}
+#ifdef BOOTLOADER
+, {CanardTransferTypeResponse, UAVCAN_FILE_READ_DATA_TYPE_ID, UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE, onFileRead}
+#endif
+};
+
 /**
  * This callback is invoked by the library when a new message or request or response is received.
  */
 static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
 {
-  if ((transfer->transfer_type == CanardTransferTypeRequest)
-      && (transfer->data_type_id == UAVCAN_GET_NODE_INFO_DATA_TYPE_ID))
-  {
-    onGetNodeInfo(ins, transfer);
-  }
-  if ((transfer->transfer_type == CanardTransferTypeRequest)
-      && (transfer->data_type_id == UAVCAN_RESTART_NODE_DATA_TYPE_ID))
-  {
-    onRestartNode(ins, transfer);
-  }
-  if ((transfer->transfer_type == CanardTransferTypeRequest)
-      && (transfer->data_type_id == UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID))
-  {
-    onBeginFirmwareUpdate(ins, transfer);
-  }
-  if ((transfer->transfer_type == CanardTransferTypeRequest)
-        && (transfer->data_type_id == UAVCAN_PARAM_GETSET_DATA_TYPE_ID))
-  {
-    onParamGetSet(ins, transfer);
-  }
   app_on_transfer_received(ins, transfer);
-#ifndef BOOTLOADER
-  if ((transfer->transfer_type == CanardTransferTypeBroadcast)
-        && (transfer->data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
+  uint8_t i;
+  for (i = 0; i < sizeof(receiveTransfers) / sizeof(receiveTransfers[0]); ++i)
   {
-    on_conduction_sensor_data(transfer);
+    if ((transfer->transfer_type == receiveTransfers[i].transfer_type)
+      && (transfer->data_type_id == receiveTransfers[i].data_type_id))
+    {
+      receiveTransfers[i].cb(ins, transfer);
+    }
   }
-  if ((transfer->transfer_type == CanardTransferTypeBroadcast)
-        && (transfer->data_type_id == HOMEAUTOMATION_TIME_DATA_TYPE_ID))
-  {
-    on_time_data(transfer);
-  }
-#endif
-#ifdef BOOTLOADER
-  if ((transfer->transfer_type == CanardTransferTypeResponse)
-      && (transfer->data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
-  {
-    onFileRead(ins, transfer);
-  }
-#endif
 }
 
 /**
@@ -441,50 +424,16 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
   }
   else
   {
-    if ((transfer_type == CanardTransferTypeRequest)
-        && (data_type_id == UAVCAN_GET_NODE_INFO_DATA_TYPE_ID))
+    uint8_t i;
+    for (i = 0; i < sizeof(receiveTransfers) / sizeof(receiveTransfers[0]); ++i)
     {
-      *out_data_type_signature = UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE;
-      return true;
+      if ((transfer_type == receiveTransfers[i].transfer_type)
+        && (data_type_id == receiveTransfers[i].data_type_id))
+      {
+        *out_data_type_signature = receiveTransfers[i].data_type_signature;
+        return true;
+      }
     }
-    if ((transfer_type == CanardTransferTypeRequest)
-            && (data_type_id == UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID))
-    {
-      *out_data_type_signature = UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE;
-      return true;
-    }
-    if ((transfer_type == CanardTransferTypeRequest)
-                && (data_type_id == UAVCAN_RESTART_NODE_DATA_TYPE_ID))
-    {
-      *out_data_type_signature = UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE;
-      return true;
-    }
-    if ((transfer_type == CanardTransferTypeRequest)
-                && (data_type_id == UAVCAN_PARAM_GETSET_DATA_TYPE_ID))
-    {
-      *out_data_type_signature = UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE;
-      return true;
-    }
-    if ((transfer_type == CanardTransferTypeBroadcast)
-            && (data_type_id == HOMEAUTOMATION_TIME_DATA_TYPE_ID))
-    {
-      *out_data_type_signature = HOMEAUTOMATION_TIME_DATA_TYPE_SIGNATURE;
-      return true;
-    }
-    if ((transfer_type == CanardTransferTypeBroadcast)
-            && (data_type_id == HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID))
-    {
-      *out_data_type_signature = HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_SIGNATURE;
-      return true;
-    }
-#ifdef BOOTLOADER
-    if ((transfer_type == CanardTransferTypeResponse)
-                    && (data_type_id == UAVCAN_FILE_READ_DATA_TYPE_ID))
-    {
-      *out_data_type_signature = UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE;
-      return true;
-    }
-#endif
   }
 
   return false;
@@ -530,33 +479,6 @@ static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t
         CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
 }
 
-static void broadcast_conduction_data(uint8_t error, uint8_t state, uint8_t num, uint8_t *quality)
-{
-  uint8_t buffer[HOMEAUTOMATION_CONDUCTION_SENSOR_MESSAGE_SIZE];
-  static uint8_t transfer_id = 0;
-  /* bit0: Error in data */
-  buffer[0] = state; /* Bit 0-6: state */
-  if(error)
-  {
-    buffer[0] |= 0x80; /* Bit 7: error */
-  }
-  for(int i = 0; i < num; ++i) {
-    buffer[1+i] = quality[i];
-  }
-  canardLockBroadcast(&canard,
-          HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_SIGNATURE,
-          HOMEAUTOMATION_CONDUCTION_SENSOR_DATA_TYPE_ID, &transfer_id,
-          CANARD_TRANSFER_PRIORITY_LOW, buffer, 1 + num);
-}
-
-static void broadcast_eventcounts(uint32_t *eventcounts, uint8_t cnt)
-{
-  static uint8_t transfer_id = 0;
-  canardLockBroadcast(&canard,
-          HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_SIGNATURE,
-          HOMEAUTOMATION_EVENTCOUNT_DATA_TYPE_ID, &transfer_id,
-          CANARD_TRANSFER_PRIORITY_LOW, eventcounts, 4 * cnt);
-}
 
 /**
  * This function is called at 1 Hz rate from the main loop.
@@ -617,36 +539,9 @@ static void process1HzTasks(uint64_t timestamp_usec)
     {
       broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
     }
-    /* Conduction sensor */
-    uint8_t num = conduction_num_sensors();
-    if(num)
-    {
-      uint8_t state = 0;
-      uint8_t q[8];
-      conduction_acquire();
-      uint8_t error = conduction_getClearError();
-      for(int i = 0; i < num; ++i)
-      {
-        if(conduction_evaluate(i, &q[i]))
-        {
-          state |= (1 << i);
-        }
-      }
-      broadcast_conduction_data(error, state, num, q);
-    }
-    if(eventcount_is_present())
-    {
-      uint32_t eventcounts[EVENTCOUNT_PORTS];
-      uint8_t valid = eventcount_get_count(eventcounts);
-      broadcast_eventcounts(eventcounts, valid);
-    }
     if(dimmer_is_present())
     {
       dimmer_read_config();
-    }
-    if(pump_receiver_is_present())
-    {
-      pump_receiver_tick();
     }
     app_tick();
   }
@@ -815,7 +710,6 @@ static THD_FUNCTION(FastTasksThread, arg)
   while(node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
   {
     /* Executed every ~5ms. Can be used for key debouncing etc. */
-    eventcount_acquire();
     if(dimmer_is_present())
     {
       dimmer_tick();
@@ -834,13 +728,6 @@ void node_tx_request(void)
   chEvtBroadcast(&txrequest_event);
 }
 
-void signalError(uint32_t code) {
-  chMtxLock(&errorMtx);
-  uint8_t i = errorCount++;
-  i %= ERROR_MESSAGE_COUNT;
-  errorMessages[i] = code;
-  chMtxUnlock(&errorMtx);
-}
 
 /* This message unfortunately needs ~150 bytes of stack. Please be careful when using!
  *

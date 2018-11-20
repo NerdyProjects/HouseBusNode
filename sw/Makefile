@@ -135,20 +135,20 @@ CSRC += firmware_update.c \
 else
 ifeq ($(NODE),VIESSMANN_TRIMATIK)
 CSRC += nodes/viessmann_trimatik.c \
-				time_data.c
+				modules/time_data.c
 endif
 ifeq ($(NODE),HALLWAY_LIGHT)
 CSRC += nodes/hallway_light.c \
-				time_data.c
+				modules/time_data.c
+endif
+ifeq ($(NODE),SML)
+CSRC += nodes/sml.c
 endif
 CSRC += bme280_node.c \
         drivers/bme280.c \
         drivers/analog.c \
         drivers/pwm.c \
-        conduction_sensor.c \
-        eventcount.c \
-        dimmer.c \
-        pump_receiver.c
+        dimmer.c
 endif
 
 

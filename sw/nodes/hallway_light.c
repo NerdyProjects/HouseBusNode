@@ -2,7 +2,7 @@
 #include "../node.h"
 #include "../config.h"
 #include "../drivers/pwm.h"
-#include "../time_data.h"
+#include "modules/time_data.h"
 #include "../drivers/analog.h" // for random data
 
 /* Hallway light beginning from door .. backyard */
@@ -301,4 +301,9 @@ void app_fast_tick(void)
 void app_tick(void)
 {
 
+}
+
+void app_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+  time_data_on_transfer_received(ins, transfer);
 }

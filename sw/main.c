@@ -73,10 +73,7 @@ int main(void)
   wdgReset(&WDGD1);
 
 #ifndef BOOTLOADER
-  eventcount_init();
   analog_init();
-  conduction_init();
-  pump_receiver_init();
   dimmer_init();
   wdgReset(&WDGD1);
   bme280_node_init();

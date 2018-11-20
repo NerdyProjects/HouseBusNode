@@ -1,5 +1,3 @@
-#ifdef NODE_SML
-
 #include "hal.h"
 #include "../config.h"
 #include "../node.h"
@@ -181,5 +179,3 @@ void app_fast_tick(void)
     }
   }
 }
-
-#endif
