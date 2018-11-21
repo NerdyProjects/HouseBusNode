@@ -483,7 +483,7 @@ void app_tick(void)
   static uint8_t currentBurnerState;
   static uint8_t currentCirculationState;
   static systime_t lastBurnerRequestStart;
-  static systime_t lastBurnerStop;
+  static systime_t lastBurnerStop = 0x8FF;    /* Future initialization so we don't start in burner stop phase */
   static systime_t lastCirculationStart;
   static int16_t extendThisCycleFlowTemp;
   uint8_t nextBurnerState = 0;
