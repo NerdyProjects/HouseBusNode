@@ -485,6 +485,7 @@ void app_tick(void)
   static systime_t lastBurnerRequestStart;
   static systime_t lastBurnerStop;
   static systime_t lastCirculationStart;
+  static int16_t extendThisCycleFlowTemp;
   uint8_t nextBurnerState = 0;
   uint8_t nextCirculationState = 0;
   int16_t burnerLidFor = (currentBurnerState ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
@@ -495,7 +496,6 @@ void app_tick(void)
   } else {
     targetFlowTemp = getTargetFlowTemperature(getTargetTemperature(1) + time2Temp);
   }
-
 
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
@@ -519,7 +519,8 @@ void app_tick(void)
       }
       if(currentBurnerState)
       {
-        if(flowTemp > (targetFlowTemp + flowHysteresisTurnOff) ||
+        if((flowTemp > (targetFlowTemp + flowHysteresisTurnOff)
+        && (flowTemp > (targetFlowTemp + extendThisCycleFlowTemp))) ||  // cycle extension can override (increase) turn off hysteresis
            burnerTemp > (targetFlowTemp + flowHysteresisTurnOff))
         {
           nextBurnerState = 0;
@@ -548,8 +549,8 @@ void app_tick(void)
     } else {
       /* Detection of burner request */
       lastBurnerRequestStart = chVTGetSystemTimeX();
+      extendThisCycleFlowTemp = targetFlowTemp - flowTemp;
     }
-
   }
   if(nextCirculationState && !currentCirculationState) {
     lastCirculationStart = chVTGetSystemTimeX();
