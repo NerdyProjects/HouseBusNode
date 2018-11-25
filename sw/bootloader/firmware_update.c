@@ -7,8 +7,8 @@
 
 #include <string.h>
 #include "canard.h"
-#include "drivers/flash.h"
-#include "bootloader_interface.h"
+#include "../drivers/flash.h"
+#include "../bootloader_interface.h"
 #include "firmware_update.h"
 #include "uavcan.h"
 #include "node.h"
@@ -55,7 +55,7 @@ void onFileRead(CanardInstance* ins, CanardRxTransfer* transfer)
 
 static void requestFileRead(CanardInstance* ins, uint32_t offset)
 {
-  static uint8_t *transfer_id = 0;
+  static uint8_t transfer_id = 0;
   uint8_t request[UAVCAN_FILE_READ_REQUEST_MAX_SIZE];
   uint64_t offset64 = offset;
   uint16_t size = 40/8 + bootloader_interface.request_file_name_length;

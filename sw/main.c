@@ -16,7 +16,6 @@
 
 #include "ch.h"
 #include "hal.h"
-#include "chprintf.h"
 #include "node.h"
 #include "bme280_node.h"
 #include "drivers/i2c.h"
@@ -80,7 +79,6 @@ int main(void)
   wdgReset(&WDGD1);
   app_init();
 #endif
-  chprintf((BaseSequentialStream *) &STDOUT_SD, "SYSCLK=%u\r\n", STM32_SYSCLK);
   wdgReset(&WDGD1);
   node_setMode(UAVCAN_NODE_MODE_OPERATIONAL);
   /*

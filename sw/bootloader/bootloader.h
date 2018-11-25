@@ -8,7 +8,6 @@
 #ifndef BOOTLOADER_H_
 #define BOOTLOADER_H_
 
-void bootloader_command_executed(void);
-void bootloader_loop(void);
+void boot_application(void);
 
 #endif /* BOOTLOADER_H_ */

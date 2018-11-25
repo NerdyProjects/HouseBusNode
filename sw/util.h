@@ -10,9 +10,8 @@
 
 #include <ch.h>
 #include <hal.h>
-#include "chprintf.h"
 
-#if 0
+#if 1
 #define DEBUG(...)
 #define ERROR(...)
 #else
@@ -20,20 +19,18 @@
 #define ERROR(...) chprintf((BaseSequentialStream *) &STDOUT_SD, __VA_ARGS__)
 #endif
 
-static inline uint64_t getMonotonicTimestampUSec(void)
-{
-  systime_t currentTime = chVTGetSystemTime();
-  return (uint64_t)currentTime * (uint64_t)(1000000ULL/CH_CFG_ST_FREQUENCY);
-}
+#define getMonotonicTimestamp(x) chVTGetSystemTimeX()
 
 #define CANARD_ASSERT(x) util_assert(x)
 
-static void util_assert(int x) {
+#define util_assert(x)
+
+/*static void util_assert(int x) {
   if(!x) {
     while(1)
       ;
   }
-}
+} */
 
 static inline stm32_gpio_t* portToGPIO(uint8_t port)
 {

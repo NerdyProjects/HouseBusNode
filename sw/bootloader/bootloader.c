@@ -7,19 +7,10 @@
 #include <string.h>
 #include "hal.h"
 #include "ch.h"
-#include "bootloader_interface.h"
+#include "../bootloader_interface.h"
 
 extern uint32_t __application_flash_base__;
 uint32_t __attribute__(( section (".vtors_ram"))) vector_table[47];
-extern volatile uint8_t FirmwareUpdate;
-
-/* by default, boot application after this timeout */
-#define BOOTLOADER_TIMEOUT TIME_S2I(10)
-/* after a command has been received, use this timeout to boot application */
-#define BOOTLOADER_COMMAND_TIMEOUT TIME_S2I(60)
-
-/* simple flag to pronlongue the bootloader timeout */
-volatile uint8_t command_executed = 0;
 
 /* Boots the application by
  *
@@ -30,7 +21,7 @@ volatile uint8_t command_executed = 0;
  * The watchdog is intentionally left running so a broken software will lead back
  * to the bootloader.
  */
-static void boot_application(void)
+void boot_application(void)
 {
   __disable_irq();
   /* first, disable all peripherals as we don't need anything anymore */
@@ -59,34 +50,3 @@ static void boot_application(void)
   uint32_t jump_target = application_flash[1] | 1;
   asm("BX %0" : : "r"(jump_target));
 }
-
-
-void bootloader_command_executed(void)
-{
-  command_executed = 1;
-}
-
-void bootloader_loop(void)
-{
-  systime_t boot_application_at = chVTGetSystemTime() + BOOTLOADER_TIMEOUT;
-  if(bootloader_interface.magic == BOOTLOADER_INTERFACE_VALID_MAGIC &&
-     bootloader_interface.request_from_node_id &&
-     bootloader_interface.request_file_name_length)
-  {
-    FirmwareUpdate = 1;
-    command_executed = 1;
-    /* Invalidate data from now on */
-    bootloader_interface.magic = 0;
-  }
-  while(boot_application_at > chVTGetSystemTime())
-  {
-    if(command_executed)
-    {
-      command_executed = 0;
-      boot_application_at =  chVTGetSystemTime() + BOOTLOADER_COMMAND_TIMEOUT;
-    }
-    chThdSleep(TIME_MS2I(500));
-  }
-  boot_application();
-}
-

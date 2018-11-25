@@ -83,17 +83,13 @@ endif
 #
 
 # Define project name here
-ifeq ($(BOOTLOADER),1)
-  PROJECT = bootloader
-  BUILDDIR=build/bootloader
-else
-  PROJECT = $(NODE)
-  BUILDDIR=build/$(NODE)
-endif
+PROJECT = bootloader
+BUILDDIR=build-bl
+DEPDIR=.dep-bl
 
 
 # Imported source files and paths
-CHIBIOS = ChibiOS
+CHIBIOS = ../ChibiOS
 include $(CHIBIOS)/os/license/license.mk
 # Startup files.
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f0xx.mk
@@ -101,54 +97,26 @@ include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f0xx.m
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F0xx/platform.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
-include $(CHIBIOS)/os/hal/lib/streams/streams.mk
+#include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v6m.mk
 
 # Define linker script file here
-ifeq ($(BOOTLOADER),1)
-  LDSCRIPT= ld/STM32F072xB_bl.ld
-else
-  LDSCRIPT= ld/STM32F072xB_app.ld
-endif
-
+LDSCRIPT= ../ld/STM32F072xB_bl.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(ALLCSRC) \
        node.c \
-       config.c \
-       board/board.c \
+       ../board/board.c \
        main.c \
-       drivers/flash.c \
-       drivers/i2c.c \
-       drivers/eeprom24c.c \
-       libcanard/canard.c \
-       exception.c \
-       bootloader_interface.c \
-       nodes/defaultNode.c
-
-ifeq ($(NODE),VIESSMANN_TRIMATIK)
-CSRC += nodes/viessmann_trimatik.c \
-				modules/time_data.c
-endif
-ifeq ($(NODE),HALLWAY_LIGHT)
-CSRC += nodes/hallway_light.c \
-				modules/time_data.c
-endif
-ifeq ($(NODE),SML)
-CSRC += nodes/sml.c
-endif
-ifeq ($(NODE),HUMIDITY_ALARM)
-CSRC += nodes/humidity_alarm.c \
-				drivers/tone.c
-endif
-CSRC += bme280_node.c \
-        drivers/bme280.c \
-        drivers/analog.c \
-        drivers/pwm.c \
-        dimmer.c
+       ../drivers/flash.c \
+       ../libcanard/canard.c \
+       ../exception.c \
+       ../bootloader_interface.c \
+			 firmware_update.c \
+			 bootloader.c
 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -176,13 +144,12 @@ TCSRC =
 TCPPSRC =
 
 # List ASM source files here
-ASMSRC = $(ALLASMSRC) qfplib-20161124/qfplib.s
+ASMSRC = $(ALLASMSRC)
 ASMXSRC = $(ALLXASMSRC)
 
 INCDIR = $(ALLINC) \
-         board \
-         libcanard \
-         qfplib-20161124
+         ../board \
+         ../libcanard
 
 
 
@@ -248,14 +215,9 @@ ULIBDIR =
 # List all user libraries here
 ULIBS =
 
-
-ifeq ($(BOOTLOADER),1)
-	UDEFS += -DBOOTLOADER
-endif
-
 #
 # End of user defines
 ##############################################################################
 
-RULESPATH = .
+RULESPATH = ../
 include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/rules.mk

@@ -10,16 +10,10 @@
 #include <canard.h>
 #include <string.h>
 #include "uavcan.h"
-#include "util.h"
 #include "node.h"
-#include "bme280_node.h"
-#include "config.h"
-#include "bootloader_interface.h"
-#include "config.h"
-#include "drivers/analog.h"
-#include "dimmer.h"
-#include "nodes/node.h"
-#include "modules/time_data.h"
+#include "../bootloader_interface.h"
+#include "firmware_update.h"
+#include "bootloader.h"
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
@@ -30,7 +24,8 @@ event_source_t txrequest_event;
 systime_t NodeRestartAt;
 
 static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
-static uint8_t node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
+
+volatile uint8_t FirmwareUpdate = 0;
 
 /* ChibiOs wrappers around canard to be able to have indepentent RX/TX Threads */
 MUTEX_DECL(canardMtx);
@@ -78,37 +73,15 @@ int canardLockBroadcast(CanardInstance* ins,            ///< Library instance
 
 void requestNodeRestart(void)
 {
-  bootloader_interface.node_id = config_get_uint(CONFIG_NODE_ID);
-  bootloader_interface.magic = BOOTLOADER_INTERFACE_VALID_MAGIC;
   if(NodeRestartAt == 0)
   {
     NodeRestartAt = chVTGetSystemTimeX() + TIME_S2I(1);
   }
 }
 
-uint8_t node_getMode(void)
-{
-  return node_mode;
-}
-
-void node_setMode(uint8_t mode)
-{
-  node_mode = mode;
-}
-
 static uint8_t isNodeRestartRequested(void)
 {
   return (NodeRestartAt != 0);
-}
-
-static void payloadExtractArray(CanardRxTransfer *transfer, uint16_t offset, uint8_t len, uint8_t *dst)
-{
-  while(len)
-  {
-    canardDecodeScalar(transfer, offset*8, 8, 0, dst++);
-    len--;
-    offset++;
-  }
 }
 
 static void makeNodeStatusMessage(
@@ -117,7 +90,11 @@ static void makeNodeStatusMessage(
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
   int uptime_sec = TIME_I2S(chVTGetSystemTimeX());
   uint16_t vdda = 0;
-  vdda= analog_get_vdda();
+  uint8_t node_mode = UAVCAN_NODE_MODE_MAINTENANCE;
+  if(FirmwareUpdate)
+  {
+    node_mode = UAVCAN_NODE_MODE_SOFTWAREUPDATE;
+  }
   if(isNodeRestartRequested())
   {
     node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
@@ -140,6 +117,7 @@ static void readUniqueID(uint8_t* out_uid)
 
 static void onGetNodeInfo(CanardInstance* ins, CanardRxTransfer* transfer)
 {
+  uint8_t name[] = "Bootloader Node";
   uint8_t buffer[UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE];
   memset(buffer, 0, UAVCAN_GET_NODE_INFO_RESPONSE_MAX_SIZE);
 
@@ -161,10 +139,9 @@ static void onGetNodeInfo(CanardInstance* ins, CanardRxTransfer* transfer)
   // Certificate of authenticity skipped
 
   // Name
-  uint8_t name_len;
-  config_get(CONFIG_NODE_NAME, &buffer[41], &name_len);
+  memcpy(&buffer[41], name, sizeof(name));
 
-  const size_t total_size = 41 + name_len;
+  const size_t total_size = 41 + sizeof(name);
 
   /*
    * Transmitting; in this case we don't have to release the payload because it's empty anyway.
@@ -197,122 +174,6 @@ static void onRestartNode(CanardInstance* ins, CanardRxTransfer* transfer)
       transfer->priority, CanardResponse, &response, 1);
 }
 
-static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
-{
-  uint8_t buffer[UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE];
-  uint16_t response_size;
-  memset(buffer, 0, UAVCAN_PARAM_GETSET_RESPONSE_MAX_SIZE);
-
-  if(transfer->payload_len < 2) {
-    /* invalid payload */
-    return;
-  }
-
-  uint16_t config_id;
-  uint8_t unionTag;
-  uint8_t value_len;
-  int name_len;
-  canardDecodeScalar(transfer, 0, 13, 0, &config_id);
-  canardDecodeScalar(transfer, 13, 3, 0, &unionTag);
-  switch(unionTag)
-  {
-  case 0:
-    /* empty */
-    value_len = 0;
-    break;
-  case 1:
-    /* int64 */
-    value_len = 8;
-    break;
-  case 2:
-    /* float32 */
-    value_len = 4;
-    break;
-  case 3:
-    /* 8 bit boolean */
-    value_len = 1;
-    break;
-  case 4:
-    /* 4: string with length prefix */
-    value_len = transfer->payload_head[2] + 1;
-    break;
-  default:
-    /* invalid payload */
-    return;
-  }
-
-  name_len = transfer->payload_len - 2 - value_len;
-  if(name_len < 0) {
-    /* invalid payload */
-    return;
-  } else if(name_len > 0)
-  {
-    uint8_t name[92];
-    payloadExtractArray(transfer, 2 + value_len, name_len, name);
-    int id = config_get_id_by_name(name, name_len);
-    if(id < 0)
-    {
-      /* merge invalid ID paths using an invalid 16 bit ID */
-      config_id = 65535;
-    } else
-    {
-      config_id = (uint16_t)id;
-    }
-  }
-
-  if(config_get_param_size(config_id) != 0)
-  {
-    /* Parameter exists - Perform get or set */
-    if(unionTag != 0)
-    {
-      /* Set */
-      if(unionTag == 1)
-      {
-        /* int64*/
-        int64_t value;
-        canardDecodeScalar(transfer, 16, 64, 1, &value);
-        config_set(config_id, &value, 8);
-      } else if(unionTag == 4)
-      {
-        /* string */
-        uint8_t str[128];
-        payloadExtractArray(transfer, 3, transfer->payload_head[2], str);
-        config_set(config_id, str, transfer->payload_head[2]);
-      }
-      app_config_update();
-    }
-    /* Always perform get for response: Actual/default/min/max value */
-    switch (config_get_param_type(config_id))
-    {
-    case CONFIG_PARAM_STRING:
-      buffer[0] = 4;
-      config_get(config_id, &buffer[2], &buffer[1]);
-      response_size = 1 + 1 + buffer[1] + 3;
-      break;
-    case CONFIG_PARAM_INT:
-      buffer[0] = 1;
-      config_get(config_id, &buffer[1], NULL);
-      response_size = 1 + 8 + 3;
-      break;
-    default:
-      util_assert(0);
-      break;
-    }
-    /* read name */
-    config_get_name(config_id, &buffer[response_size]);
-    response_size += strlen(&buffer[response_size]);
-  } else
-  {
-    /* Parameter does not exist - response with 4 empty values signals that */
-    response_size = 4;
-  }
-  canardLock(canardReleaseRxTransferPayload(ins, transfer));
-  const int resp_res = canardLockRequestOrRespond(ins, transfer->source_node_id,
-            UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE,
-            UAVCAN_PARAM_GETSET_DATA_TYPE_ID, &transfer->transfer_id,
-            transfer->priority, CanardResponse, buffer, response_size);
-}
-
 static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfer)
 {
   uint8_t response = 0;
@@ -323,6 +184,10 @@ static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfe
   {
     response = 1;
   }
+  if(FirmwareUpdate)
+  {
+    response = 2;
+  }
   if(response == 0)
   {
     bootloader_interface.request_from_node_id = source_id;
@@ -331,7 +196,7 @@ static void onBeginFirmwareUpdate(CanardInstance* ins, CanardRxTransfer* transfe
     {
       canardDecodeScalar(transfer, 8+8*i, 8, 0, &bootloader_interface.request_file_name[i]);
     }
-    requestNodeRestart();
+    FirmwareUpdate = 1;
   }
   canardLock(canardReleaseRxTransferPayload(ins, transfer));
   const int resp_res = canardLockRequestOrRespond(ins, transfer->source_node_id,
@@ -347,14 +212,13 @@ typedef struct {
   OnTransferReceivedCB cb;
 } ReceiveTransfer;
 
-
+#undef REGISTER_TRANSFER
 #define REGISTER_TRANSFER(type, id, signature, cb) {type, id, signature, cb},
 ReceiveTransfer receiveTransfers[] = {
-#include "transfer_registrations.h"
 REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_GET_NODE_INFO_DATA_TYPE_ID, UAVCAN_GET_NODE_INFO_DATA_TYPE_SIGNATURE, onGetNodeInfo)
 REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_RESTART_NODE_DATA_TYPE_ID, UAVCAN_RESTART_NODE_DATA_TYPE_SIGNATURE, onRestartNode)
-REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_PARAM_GETSET_DATA_TYPE_ID, UAVCAN_PARAM_GETSET_DATA_TYPE_SIGNATURE, onParamGetSet)
 {CanardTransferTypeRequest, UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_ID, UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_TYPE_SIGNATURE, onBeginFirmwareUpdate}
+, {CanardTransferTypeResponse, UAVCAN_FILE_READ_DATA_TYPE_ID, UAVCAN_FILE_READ_DATA_TYPE_SIGNATURE, onFileRead}
 };
 
 /**
@@ -422,31 +286,6 @@ static void broadcast_node_status(void) {
   }
 }
 
-
-/* Valid flags: 1 - humidity valid, 2 - pressure valid */
-static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t milliRelativeHumidity, uint32_t centiBarPressure, uint8_t validFlags)
-{
-  uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
-  static uint8_t transfer_id = 0;
-
-  /* data contains:
-   *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
-   *  pressure in 10^-2 mbar (mbar = pres / 100) [30000-110000] -> 18 bit
-   *  temperature in centidegrees (degree = temp / 100) [-4000..8500] -> 19 bit
-   *  ToDo: Temperature only needs 15 bits
-   */
-  memset(buffer, 0, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-  canardEncodeScalar(buffer, 0, 2, &validFlags);
-  canardEncodeScalar(buffer, 2, 19, &centiCelsiusTemperature);
-  canardEncodeScalar(buffer, 21, 17, &milliRelativeHumidity);
-  canardEncodeScalar(buffer, 38, 18, &centiBarPressure);
-  canardLockBroadcast(&canard,
-        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE,
-        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID, &transfer_id,
-        CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-}
-
-
 /**
  * This function is called at 1 Hz rate from the main loop.
  */
@@ -458,59 +297,9 @@ static void process1HzTasks(uint32_t timestamp)
   canardLock(canardCleanupStaleTransfers(&canard, timestamp));
 
   /*
-   * Printing the memory usage statistics.
-   */
-  {
-    canardLock(
-    const CanardPoolAllocatorStatistics stats =
-        canardGetPoolAllocatorStatistics(&canard));
-    const unsigned peak_percent = 100U * stats.peak_usage_blocks
-        / stats.capacity_blocks;
-
-    DEBUG(
-        "Canard mem: cap %u blks, using %u, pk %u (%u%%)\n",
-        stats.capacity_blocks, stats.current_usage_blocks,
-        stats.peak_usage_blocks, peak_percent);
-
-    /*
-     * The recommended way to establish the minimal size of the memory pool is to stress-test the application and
-     * record the worst case memory usage.
-     */
-    if (peak_percent > 70)
-    {
-      DEBUG("WARN: ENLARGE Canard MEM");
-    }
-  }
-
-  /*
    * Transmitting the node status message periodically.
    */
   broadcast_node_status();
-  if(node_mode == UAVCAN_NODE_MODE_OPERATIONAL)
-  {
-    /* Temperature: Environment data from I2C BME280 or internal temperature sensor */
-    if(bme280_is_present())
-    {
-      struct bme280_data data;
-      if(bme280_node_read(&data) == 0)
-      {
-        uint8_t valid = 3;
-        if(data.humidity == 0)
-        {
-          valid = 2;
-        }
-        broadcast_environment_data(data.temperature, data.humidity, data.pressure, valid);
-      }
-    } else
-    {
-      broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
-    }
-    if(dimmer_is_present())
-    {
-      dimmer_read_config();
-    }
-    app_tick();
-  }
 }
 
 static void canDriverEnable(uint8_t enable)
@@ -588,7 +377,23 @@ static THD_FUNCTION(CanNodeThread, arg)
   chEvtRegister(&txrequest_event, &txr, CAN_EVT_TXR);
   while (true)
   {
-    if (chVTTimeElapsedSinceX(lastInvocation) > TIME_S2I(1))
+    if(FirmwareUpdate)
+    {
+      int res;
+      res = processFirmwareUpdate(&canard);
+      if(res == FIRMWARE_UPDATE_ERR_FLASH_FAILED)
+      {
+        /* Firmware update failed - application is likely to be broken now */
+        node_health = UAVCAN_NODE_HEALTH_CRITICAL;
+        FirmwareUpdate = 0;
+        bootloader_interface.request_from_node_id = 0;
+      } else if(res == FIRMWARE_UPDATE_DONE_SUCCESS)
+      {
+        bootloader_interface.request_from_node_id = 0;
+        FirmwareUpdate = 0;
+      }
+    }
+    if (chVTTimeElapsedSinceX(lastInvocation) >= TIME_S2I(1))
     {
       systime_t currentTime = chVTGetSystemTimeX();
       process1HzTasks(getMonotonicTimestamp());
@@ -644,28 +449,6 @@ static THD_FUNCTION(CanRxThread, arg)
   }
 }
 
-static THD_WORKING_AREA(waFastTasksThread, 1024);
-static THD_FUNCTION(FastTasksThread, arg)
-{
-  (void) arg;
-  chRegSetThreadName("FastTasks");
-  while(node_getMode() != UAVCAN_NODE_MODE_OPERATIONAL)
-  {
-    chThdSleepS(5);
-  }
-  systime_t nextInvocation = chVTGetSystemTimeX();
-  while(node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
-  {
-    /* Executed every ~5ms. Can be used for key debouncing etc. */
-    if(dimmer_is_present())
-    {
-      dimmer_tick();
-    }
-    app_fast_tick();
-    nextInvocation = chThdSleepUntilWindowed(nextInvocation, nextInvocation + TIME_MS2I(5));
-  }
-}
-
 /* Signals a TX request for immediate transmission wakeup.
  * This method can optionally be called after scheduling a transmission,
  * if it is not called, the transmissions will only be handled periodically. */
@@ -675,37 +458,7 @@ void node_tx_request(void)
 }
 
 
-/* This message unfortunately needs ~150 bytes of stack. Please be careful when using!
- *
- */
-void node_debug(uint8_t loglevel, const char *source, const char *msg)
-{
-  uint8_t buffer[UAVCAN_DEBUG_LOG_MESSAGE_MESSAGE_SIZE];
-  uint8_t source_len = strlen(source) & 31;
-  uint8_t msg_len = strlen(msg);
-  static uint8_t transfer_id;
-  if(msg_len > 90)
-  {
-    msg_len = 90;
-  }
-  /* Use manual mutex locking here to lock the global buffer as well */
-  chMtxLock(&canardMtx);
-  buffer[0] = (loglevel << 5) | source_len;
-  memcpy(&buffer[1], source, source_len);
-  memcpy(&buffer[1+source_len], msg, msg_len);
-  canardBroadcast(
-      &canard,
-      UAVCAN_DEBUG_LOG_MESSAGE_DATA_TYPE_SIGNATURE,
-      UAVCAN_DEBUG_LOG_MESSAGE_DATA_TYPE_ID,
-      &transfer_id,
-      CANARD_TRANSFER_PRIORITY_LOWEST,
-      buffer, 1 + source_len + msg_len
-      );
-  chMtxUnlock(&canardMtx);
-}
-
-
-void node_init(void)
+void node_init(uint8_t node_id)
 {
   /* values for 87.5% samplepoint at 48 MHz and 125000bps */
   static const CANConfig cancfg = {
@@ -726,12 +479,10 @@ void node_init(void)
   wdgReset(&WDGD1);
   canardInit(&canard, canard_memory_pool, sizeof(canard_memory_pool),
       onTransferReceived, shouldAcceptTransfer, NULL);
-  canardSetLocalNodeID(&canard, config_get_uint(CONFIG_NODE_ID));
+  canardSetLocalNodeID(&canard, node_id);
   wdgReset(&WDGD1);
   chThdCreateStatic(waCanRxThread, sizeof(waCanRxThread), HIGHPRIO, CanRxThread,
         NULL);
   chThdCreateStatic(waCanNodeThread, sizeof(waCanNodeThread), NORMALPRIO, CanNodeThread,
       NULL);
-  chThdCreateStatic(waFastTasksThread, sizeof(waFastTasksThread), HIGHPRIO, FastTasksThread,
-        NULL);
 }
