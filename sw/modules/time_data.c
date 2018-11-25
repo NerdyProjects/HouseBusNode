@@ -5,16 +5,7 @@ volatile bool time_daylight;
 volatile uint8_t time_hour;
 volatile uint8_t time_minute;
 
-void time_data_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
-{
-  if ((transfer->transfer_type == CanardTransferTypeBroadcast)
-        && (transfer->data_type_id == HOMEAUTOMATION_TIME_DATA_TYPE_ID))
-  {
-    on_time_data(transfer);
-  }
-}
-
-void on_time_data(CanardRxTransfer* transfer)
+void on_time_data(CanardInstance* ins, CanardRxTransfer* transfer)
 {
   if(transfer->payload_len < 1) {
     /* invalid payload */

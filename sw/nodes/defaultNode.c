@@ -19,9 +19,3 @@ void __attribute__((weak)) app_config_update(void)
 {
 
 }
-
-
-void __attribute__((weak)) app_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
-{
-
-}

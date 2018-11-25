@@ -430,6 +430,7 @@ int16_t getTargetFlowTemperature(int16_t targetTemperature)
   return qfp_float2int(qfp_fmul(result, 100));
 }
 
+
 static void read_config(void)
 {
   flowHysteresisTurnOff = config_get_int(CONFIG_HEATER_FLOW_HYSTERESIS_TURN_OFF);
@@ -445,7 +446,7 @@ static void read_config(void)
   time2Temp = config_get_int(CONFIG_HEATER_TIME_2_TEMP);
 }
 
-static uint8_t inTimeRange(start, stop)
+static uint8_t inTimeRange(uint16_t start, uint16_t stop)
 {
   uint8_t current_h = time_hour;
   uint8_t current_m = time_minute;
@@ -483,7 +484,7 @@ void app_tick(void)
   static uint8_t currentBurnerState;
   static uint8_t currentCirculationState;
   static systime_t lastBurnerRequestStart;
-  static systime_t lastBurnerStop = 0x8FF;    /* Future initialization so we don't start in burner stop phase */
+  static systime_t lastBurnerStop = 0x8FF00;    /* Future initialization so we don't start in burner stop phase */
   static systime_t lastCirculationStart;
   static int16_t extendThisCycleFlowTemp;
   uint8_t nextBurnerState = 0;
@@ -521,7 +522,8 @@ void app_tick(void)
       {
         if((flowTemp > (targetFlowTemp + flowHysteresisTurnOff)
         && (flowTemp > (targetFlowTemp + extendThisCycleFlowTemp))) ||  // cycle extension can override (increase) turn off hysteresis
-           burnerTemp > (targetFlowTemp + flowHysteresisTurnOff))
+           (burnerTemp > (targetFlowTemp + flowHysteresisTurnOff)
+        && (burnerTemp > targetFlowTemp + extendThisCycleFlowTemp)))
         {
           nextBurnerState = 0;
         }
@@ -593,7 +595,3 @@ void app_config_update(void)
   read_config();
 }
 
-void app_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
-{
-  time_data_on_transfer_received(ins, transfer);
-}

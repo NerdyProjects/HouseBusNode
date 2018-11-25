@@ -394,7 +394,6 @@ REGISTER_TRANSFER(CanardTransferTypeRequest, UAVCAN_BEGIN_FIRMWARE_UPDATE_DATA_T
  */
 static void onTransferReceived(CanardInstance* ins, CanardRxTransfer* transfer)
 {
-  app_on_transfer_received(ins, transfer);
   uint8_t i;
   for (i = 0; i < sizeof(receiveTransfers) / sizeof(receiveTransfers[0]); ++i)
   {

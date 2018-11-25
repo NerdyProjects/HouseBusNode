@@ -3,7 +3,7 @@
 
 #include "node.h"
 
-void on_time_data(CanardRxTransfer* transfer);
+void on_time_data(CanardInstance* ins, CanardRxTransfer* transfer);
 extern volatile uint8_t time_hour;
 extern volatile uint8_t time_minute;
 extern volatile bool time_daylight;
