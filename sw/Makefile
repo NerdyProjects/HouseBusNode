@@ -151,6 +151,7 @@ CSRC += nodes/humidity_alarm.c \
 endif
 ifeq ($(NODE),BATHROOM)
 CSRC += nodes/bathroom.c \
+				modules/temperature_receiver.c \
 				drivers/tone.c
 endif
 

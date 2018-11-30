@@ -38,8 +38,11 @@
 #include "node.h"
 #include "hal.h"
 #include "qfplib.h"
+#include "config.h"
 #include "drivers/analog.h"
 #include "modules/bme280.h"
+#include "modules/temperature_receiver.h"
+#include "chprintf.h"
 
 #define LED_RED 0
 #define LED_YELLOW 1
@@ -63,6 +66,11 @@ static uint8_t blinkSpeed;
 static uint8_t blinkState;
 static uint8_t occupancySwitchPressed;
 
+#define OUTSIDE_TEMPERATURE_MAX_AGE_S 86400
+#define FAN_ON_MIN_S 240
+static uint16_t wallDewPointTemperatureFactor;
+static uint32_t fanOnAboveRelativeHumidity;
+
 /* sets LED 0-2 to given state */
 static void setLed(uint8_t led, uint8_t on)
 {
@@ -73,34 +81,6 @@ static void setLed(uint8_t led, uint8_t on)
     }
     palWritePad(GPIOA, pin, on);
   }
-}
-
-void app_init(void)
-{
-  palSetPadMode(GPIOA, 5, PAL_MODE_INPUT_PULLUP); /* PA5 Switch */
-  palSetGroupMode(GPIOA,
-      PAL_PORT_BIT(2) |  /* PA2-PA4 LEDs */
-      PAL_PORT_BIT(3) |
-      PAL_PORT_BIT(4) |
-      PAL_PORT_BIT(6) |   /* PA6 Light */
-      PAL_PORT_BIT(7)     /* PA7 Piezo (will be overriden by tone generator PWM) */
-      , 0, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_ANALOG); /* PA0 LDR */
-  palSetGroupMode(GPIOB,
-      PAL_PORT_BIT(1) |   /* PB1 Light switch */
-      PAL_PORT_BIT(10)    /* PB10 Door sensor */
-      , 0, PAL_MODE_INPUT_PULLUP);
-  palSetGroupMode(GPIOB,
-      PAL_PORT_BIT(3) |   /* PB3-4 230V switch light/fan */
-      PAL_PORT_BIT(4)
-      , 0, PAL_MODE_OUTPUT_PUSHPULL);
-  palSetPadMode(GPIOB, 2, PAL_MODE_INPUT_PULLDOWN); /* PB2 Motion sensor */
-
-  setLed(LED_RED, 0);
-  setLed(LED_GREEN, 0);
-  setLed(LED_YELLOW, 0);
-  palClearPad(GPIOA, 7);
-  bme280_app_init();
 }
 
 static void readMotionSensor(void)
@@ -286,16 +266,8 @@ static void occupancyIndicatorTick(void)
 }
 
 static int16_t calculateDewPoint(int32_t centiTemperature, uint32_t milliHumidity) {
-  /**
-   * if( $T >= 0 ){$a=7.5; $b=237.3;}
-else{$a=7.6; $b=240.7;}
-$sdd = 6.1078 * pow(10.0, (($a*$T)/($b+$T))); // Magnusformel
-$dd=($F/100.0) * $sdd;
-$v=log10(($dd/6.1078));
-$td=($b*$v)/($a-$v);
-   */
   float temp = qfp_fdiv(qfp_int2float(centiTemperature), 100);
-  float rh = qfp_fdiv(qfp_int2float(milliHumidity), 1000);
+  float rh = qfp_fdiv(qfp_int2float(milliHumidity), 100000);
   float a = 7.5f;
   float b = 237.3f;
   float acc = qfp_fdiv(qfp_fmul(a, temp), qfp_fadd(b, temp));
@@ -304,41 +276,75 @@ $td=($b*$v)/($a-$v);
   float v = qfp_fdiv(qfp_fln(dd), 2.30258509299f);
   float res = qfp_fdiv(qfp_fmul(b, v), qfp_fsub(a, v));
 
-
   return qfp_float2int(qfp_fmul(res, 100));
-
-
-  /* fH = (math.log10(humidity) - 2) / 0.4343 + (17.62 * temperature) / (243.12 + temperature)
-    dewpoint = 243.12 * fH / (17.62 - fH) */
-
-    /*
-     * Bezeichnungen:
-r = relative Luftfeuchte
-T = Temperatur in °C
-TK = Temperatur in Kelvin (TK = T + 273.15)
-TD = Taupunkttemperatur in °C
-DD = Dampfdruck in hPa
-SDD = Sättigungsdampfdruck in hPa
-
-Parameter:
-a = 7.5, b = 237.3 für T >= 0
-a = 7.6, b = 240.7 für T < 0 über Wasser (Taupunkt)
-a = 9.5, b = 265.5 für T < 0 über Eis (Frostpunkt)
-     *
-     * SDD(T) = 6.1078 * 10^((a*T)/(b+T))
-DD(r,T) = r/100 * SDD(T)
-r(T,TD) = 100 * SDD(TD) / SDD(T)
-TD(r,T) = b*v/(a-v) mit v(r,T) = log10(DD(r,T)/6.1078)
-    *
-    * Taupunkt = 100 * 6.1078 * 10^(7.5*T)/(237.3+T)
-    *
-    * 237.3*(log10(r/100 * 6.1078 * 10^((7.5*T)/(237.3+T)))/6.1078
-     */
 }
 
-static void fanControl(void)
+static void fanControlTick(void)
 {
+  static systime_t fanOnAt;
+  static uint8_t fanRunning;
+  uint8_t turnFanOn = 0;
+  if(bme_presence)
+  {
+    sysinterval_t age;
+    int16_t outsideTemperature;
+    int16_t insideDewPoint;
+    int16_t insideTemperature;
+    uint32_t insideHumidity;
+    outsideTemperature = getTargetTemperature(&age);
+    if(bme_presence & 1)
+    {
+      insideTemperature = BMECentiTemperature[0];
+      insideHumidity = BMEMilliHumidity[0];
+    } else {
+      insideTemperature = BMECentiTemperature[1];
+      insideHumidity = BMEMilliHumidity[1];
+    }
+    if(age < TIME_S2I(OUTSIDE_TEMPERATURE_MAX_AGE_S))
+    {
+      /* both temperature readings available */
+      int16_t wallTemperature;
 
+      /* a factor defines the ratio between inside and outside temperature roughly equalling thermal flow */
+      wallTemperature = outsideTemperature + (((int32_t)(insideTemperature - outsideTemperature)) * wallDewPointTemperatureFactor / 1024);
+      insideDewPoint = calculateDewPoint(insideTemperature, insideHumidity);
+      if(wallTemperature < insideDewPoint)
+      {
+        turnFanOn = 1;
+      }
+      {
+        uint8_t dbgbuf[20];
+        chsnprintf(dbgbuf, 20, "%d", insideDewPoint);
+        node_debug(LOG_LEVEL_INFO, "DP", dbgbuf);
+        chsnprintf(dbgbuf, 20, "%d", outsideTemperature);
+        node_debug(LOG_LEVEL_INFO, "out", dbgbuf);
+      }
+
+    }
+    if(insideHumidity > fanOnAboveRelativeHumidity)
+    {
+      turnFanOn = 1;
+    }
+  }
+  if(turnFanOn && !fanRunning)
+  {
+    fanOnAt = chVTGetSystemTimeX();
+    fanRunning = 1;
+    node_debug(LOG_LEVEL_INFO, "FAN", "ON");
+  }
+  if(!turnFanOn && fanRunning && chVTTimeElapsedSinceX(fanOnAt) > TIME_S2I(FAN_ON_MIN_S))
+  {
+    fanRunning = 0;
+    node_debug(LOG_LEVEL_INFO, "FAN", "OFF");
+  }
+}
+
+static void read_config(void)
+{
+  uint32_t t = config_get_uint(CONFIG_TEMPERATURE_RECEIVER_TARGET_NODE_ID);
+  setReceiverTarget(t);
+  wallDewPointTemperatureFactor = config_get_uint(CONFIG_WALL_DEW_POINT_TEMPERATURE_FACTOR_BY_1024);
+  fanOnAboveRelativeHumidity = config_get_uint(CONFIG_FAN_ON_ABOVE_MILLI_RELATIVE_HUMIDITY);
 }
 
 /*
@@ -347,13 +353,11 @@ static void fanControl(void)
 
 void app_tick(void)
 {
-  uint8_t dbgbuf[20];
-  chsnprintf(dbgbuf, 20, "%d", adc_smp_filtered[0]);
-  node_debug(LOG_LEVEL_INFO, "LDR", dbgbuf);
   bme280_app_read();
   readMotionSensor();
   readLdr();
   occupancyIndicatorTick();
+  fanControlTick();
 }
 
 void app_fast_tick(void)
@@ -366,4 +370,38 @@ void app_fast_tick(void)
       blinkTicks = 0;
     }
   }
+}
+
+void app_config_update(void)
+{
+  read_config();
+}
+
+void app_init(void)
+{
+  palSetPadMode(GPIOA, 5, PAL_MODE_INPUT_PULLUP); /* PA5 Switch */
+  palSetGroupMode(GPIOA,
+      PAL_PORT_BIT(2) |  /* PA2-PA4 LEDs */
+      PAL_PORT_BIT(3) |
+      PAL_PORT_BIT(4) |
+      PAL_PORT_BIT(6) |   /* PA6 Light */
+      PAL_PORT_BIT(7)     /* PA7 Piezo (will be overriden by tone generator PWM) */
+      , 0, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_ANALOG); /* PA0 LDR */
+  palSetGroupMode(GPIOB,
+      PAL_PORT_BIT(1) |   /* PB1 Light switch */
+      PAL_PORT_BIT(10)    /* PB10 Door sensor */
+      , 0, PAL_MODE_INPUT_PULLUP);
+  palSetGroupMode(GPIOB,
+      PAL_PORT_BIT(3) |   /* PB3-4 230V switch light/fan */
+      PAL_PORT_BIT(4)
+      , 0, PAL_MODE_OUTPUT_PUSHPULL);
+  palSetPadMode(GPIOB, 2, PAL_MODE_INPUT_PULLDOWN); /* PB2 Motion sensor */
+
+  setLed(LED_RED, 0);
+  setLed(LED_GREEN, 0);
+  setLed(LED_YELLOW, 0);
+  palClearPad(GPIOA, 7);
+  bme280_app_init();
+  read_config();
 }

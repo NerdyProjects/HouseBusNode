@@ -18,7 +18,7 @@
 #include "drivers/analog.h"
 #include "dimmer.h"
 #include "nodes/node.h"
-#include "modules/time_data.h"
+#include "modules/modules.h"
 
 CanardInstance canard;                       ///< The library instance
 static uint8_t canard_memory_pool[1024]; ///< Arena for memory allocation, used by the library
