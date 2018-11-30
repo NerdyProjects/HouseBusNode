@@ -210,6 +210,11 @@ static void occupancyIndicatorTick(void)
     if(motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_S)) {
       nextState = OCCUPANCY_MODE_EMPTY;
     }
+    if(occupancyPressedAt) {
+      occupancyPressedAt = 0;
+      nextState = OCCUPANCY_MODE_PRIVATE;
+    }
+
     break;
   case OCCUPANCY_MODE_IN_USE:
     node_debug(LOG_LEVEL_INFO, "BATH", "in use");
