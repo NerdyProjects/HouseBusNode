@@ -127,6 +127,11 @@ CSRC = $(ALLCSRC) \
        libcanard/canard.c \
        exception.c \
        bootloader_interface.c \
+       modules/bme280.c \
+       drivers/bme280_ll.c \
+       drivers/analog.c \
+       drivers/pwm.c \
+       dimmer.c \
        nodes/defaultNode.c
 
 ifeq ($(NODE),VIESSMANN_TRIMATIK)
@@ -144,11 +149,11 @@ ifeq ($(NODE),HUMIDITY_ALARM)
 CSRC += nodes/humidity_alarm.c \
 				drivers/tone.c
 endif
-CSRC += bme280_node.c \
-        drivers/bme280.c \
-        drivers/analog.c \
-        drivers/pwm.c \
-        dimmer.c
+ifeq ($(NODE),BATHROOM)
+CSRC += nodes/bathroom.c \
+				drivers/tone.c
+endif
+
 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -247,11 +252,6 @@ ULIBDIR =
 
 # List all user libraries here
 ULIBS =
-
-
-ifeq ($(BOOTLOADER),1)
-	UDEFS += -DBOOTLOADER
-endif
 
 #
 # End of user defines

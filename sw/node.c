@@ -12,7 +12,6 @@
 #include "uavcan.h"
 #include "util.h"
 #include "node.h"
-#include "bme280_node.h"
 #include "config.h"
 #include "bootloader_interface.h"
 #include "config.h"
@@ -422,31 +421,6 @@ static void broadcast_node_status(void) {
   }
 }
 
-
-/* Valid flags: 1 - humidity valid, 2 - pressure valid */
-static void broadcast_environment_data(int32_t centiCelsiusTemperature, uint32_t milliRelativeHumidity, uint32_t centiBarPressure, uint8_t validFlags)
-{
-  uint8_t buffer[HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE];
-  static uint8_t transfer_id = 0;
-
-  /* data contains:
-   *  humidity in millipercent (percent = hum / 1000) [0..100000] -> 17 bit
-   *  pressure in 10^-2 mbar (mbar = pres / 100) [30000-110000] -> 18 bit
-   *  temperature in centidegrees (degree = temp / 100) [-4000..8500] -> 19 bit
-   *  ToDo: Temperature only needs 15 bits
-   */
-  memset(buffer, 0, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-  canardEncodeScalar(buffer, 0, 2, &validFlags);
-  canardEncodeScalar(buffer, 2, 19, &centiCelsiusTemperature);
-  canardEncodeScalar(buffer, 21, 17, &milliRelativeHumidity);
-  canardEncodeScalar(buffer, 38, 18, &centiBarPressure);
-  canardLockBroadcast(&canard,
-        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_SIGNATURE,
-        HOMEAUTOMATION_ENVIRONMENT_DATA_TYPE_ID, &transfer_id,
-        CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_ENVIRONMENT_MESSAGE_SIZE);
-}
-
-
 /**
  * This function is called at 1 Hz rate from the main loop.
  */
@@ -488,27 +462,6 @@ static void process1HzTasks(uint32_t timestamp)
   broadcast_node_status();
   if(node_mode == UAVCAN_NODE_MODE_OPERATIONAL)
   {
-    /* Temperature: Environment data from I2C BME280 or internal temperature sensor */
-    if(bme280_is_present())
-    {
-      struct bme280_data data;
-      if(bme280_node_read(&data) == 0)
-      {
-        uint8_t valid = 3;
-        if(data.humidity == 0)
-        {
-          valid = 2;
-        }
-        broadcast_environment_data(data.temperature, data.humidity, data.pressure, valid);
-      }
-    } else
-    {
-      broadcast_environment_data(analog_get_internal_ts(), 0, 0, 0);
-    }
-    if(dimmer_is_present())
-    {
-      dimmer_read_config();
-    }
     app_tick();
   }
 }

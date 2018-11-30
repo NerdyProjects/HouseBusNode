@@ -17,12 +17,9 @@
 #include "ch.h"
 #include "hal.h"
 #include "node.h"
-#include "bme280_node.h"
 #include "drivers/i2c.h"
 #include "config.h"
 #include "drivers/analog.h"
-#include "conduction_sensor.h"
-#include "pump_receiver.h"
 #include "dimmer.h"
 #include "uavcan.h"
 #include "eventcount.h"
@@ -61,7 +58,6 @@ int main(void)
    * Activates the serial driver 2 using the driver default configuration.
    */
   sdStart(&SD1, NULL);
-  DEBUG("Hi\n");
   i2c_init();
   if(config_init(&I2CD1) < 0)
   {
@@ -75,8 +71,6 @@ int main(void)
   analog_init();
   dimmer_init();
   wdgReset(&WDGD1);
-  bme280_node_init();
-  wdgReset(&WDGD1);
   app_init();
 #endif
   wdgReset(&WDGD1);
@@ -85,9 +79,6 @@ int main(void)
    * Normal main() thread activity, in this demo it does nothing except
    * sleeping in a loop and check the button state.
    */
-#ifdef BOOTLOADER
-  bootloader_loop();
-#endif
   while (true)
   {
     chThdSleepMilliseconds(500);

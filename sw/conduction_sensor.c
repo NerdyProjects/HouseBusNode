@@ -182,3 +182,20 @@ uint8_t conduction_num_sensors(void)
 //          CANARD_TRANSFER_PRIORITY_LOW, buffer, 1 + num);
 //}
 
+///* Conduction sensor */
+//    uint8_t num = conduction_num_sensors();
+//    if(num)
+//    {
+//      uint8_t state = 0;
+//      uint8_t q[8];
+//      conduction_acquire();
+//      uint8_t error = conduction_getClearError();
+//      for(int i = 0; i < num; ++i)
+//      {
+//        if(conduction_evaluate(i, &q[i]))
+//        {
+//          state |= (1 << i);
+//        }
+//      }
+//      broadcast_conduction_data(error, state, num, q);
+//    }
