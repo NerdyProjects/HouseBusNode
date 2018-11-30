@@ -61,8 +61,8 @@ static uint8_t door_closed;
 static systime_t door_sensor_last_open;
 static uint16_t ambientBrightness;
 static uint8_t blinkTicks;
-static uint8_t blinkLedNr;
-static uint8_t blinkSpeed;
+static volatile uint8_t blinkLedNr;
+static volatile uint8_t blinkSpeed;
 static uint8_t blinkState;
 static uint8_t occupancySwitchPressed;
 
@@ -144,7 +144,7 @@ static uint8_t readKey(uint8_t key) {
 
 /* controls blink mode: speed = 0 for turning blinking off */
 static void blinkLed(uint8_t number, uint8_t speed) {
-  if(blinkLedNr != number && blinkSpeed != speed) {
+  if(blinkLedNr != number || blinkSpeed != speed) {
     blinkLedNr = number;
     blinkSpeed = speed;
     if(blinkSpeed)
@@ -235,6 +235,7 @@ static void occupancyIndicatorTick(void)
     }
     if(occupancyPressedAt) {
       nextState = OCCUPANCY_MODE_IN_USE;
+      occupancyPressedAt = 0;
     }
     break;
   default:
