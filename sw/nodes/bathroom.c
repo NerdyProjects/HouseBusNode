@@ -147,8 +147,11 @@ static void blinkLed(uint8_t number, uint8_t speed) {
   if(blinkLedNr != number && blinkSpeed != speed) {
     blinkLedNr = number;
     blinkSpeed = speed;
-    blinkState = 1;
-    setLed(number, blinkSpeed); /* only turn on if a speed is set */
+    if(blinkSpeed)
+    {
+      blinkState = 1;
+      setLed(number, blinkSpeed); /* only turn on if a speed is set */
+    }
   }
 }
 
