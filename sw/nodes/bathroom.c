@@ -346,13 +346,13 @@ static void fanControlTick(void)
     fanOnAt = chVTGetSystemTimeX();
     fanRunning = 1;
     node_debug(LOG_LEVEL_INFO, "FAN", "ON");
-    palSetPadMode(GPIOB, 4, PAL_HIGH);
+    palSetPad(GPIOB, 4);
   }
   if(!turnFanOn && fanRunning && chVTTimeElapsedSinceX(fanOnAt) > fanOnMinTime)
   {
     fanRunning = 0;
     node_debug(LOG_LEVEL_INFO, "FAN", "OFF");
-    palSetPadMode(GPIOB, 4, PAL_LOW);
+    palClearPad(GPIOB, 4);
   }
 }
 
