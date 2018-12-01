@@ -52,7 +52,7 @@
 
 #define MOTION_TRIGGER_ACTIVE_S 45
 #define MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S 240
-#define MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S 5
+#define MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S 4
 #define PRIVATE_MODE_BUTTON_VALID_FOR_S 30
 
 static systime_t motion_sensor_last_active;
@@ -67,9 +67,9 @@ static uint8_t blinkState;
 static uint8_t occupancySwitchPressed;
 
 #define OUTSIDE_TEMPERATURE_MAX_AGE_S 86400
-#define FAN_ON_MIN_S 240
 static uint16_t wallDewPointTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
+static sysinterval_t fanOnMinTime;
 
 /* sets LED 0-2 to given state */
 static void setLed(uint8_t led, uint8_t on)
@@ -173,7 +173,7 @@ static void occupancyIndicatorTick(void)
   static uint8_t motion_sensor_active_since_door_closed;
 
   if(door_closed && !motion_sensor_active_since_door_closed){
-    if(doorOpenAgo > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S) && motionSensorActiveAgo < (doorOpenAgo - TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S))) {
+    if(doorOpenAgo >= TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S) && motionSensorActiveAgo < (doorOpenAgo - TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S))) {
       motion_sensor_active_since_door_closed = 1;
     }
   } else if(!door_closed) {
@@ -213,6 +213,11 @@ static void occupancyIndicatorTick(void)
     if(occupancyPressedAt) {
       occupancyPressedAt = 0;
       nextState = OCCUPANCY_MODE_PRIVATE;
+    }
+    if(door_closed && !motion_sensor_active_since_door_closed &&
+        chVTTimeElapsedSinceX(door_sensor_last_open) > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S)) {
+    /* fast exit of this state to empty when door is closed and no person detected */
+      nextState = OCCUPANCY_MODE_EMPTY;
     }
 
     break;
@@ -268,6 +273,7 @@ static void occupancyIndicatorTick(void)
     case OCCUPANCY_MODE_PRIVATE:
       setLed(LED_GREEN, 0);
       blinkLed(LED_YELLOW, 0);
+      setLed(LED_YELLOW, 0);
       setLed(LED_RED, 1);
     default:
       break;
@@ -340,11 +346,13 @@ static void fanControlTick(void)
     fanOnAt = chVTGetSystemTimeX();
     fanRunning = 1;
     node_debug(LOG_LEVEL_INFO, "FAN", "ON");
+    palSetPadMode(GPIOB, 4, PAL_HIGH);
   }
-  if(!turnFanOn && fanRunning && chVTTimeElapsedSinceX(fanOnAt) > TIME_S2I(FAN_ON_MIN_S))
+  if(!turnFanOn && fanRunning && chVTTimeElapsedSinceX(fanOnAt) > fanOnMinTime)
   {
     fanRunning = 0;
     node_debug(LOG_LEVEL_INFO, "FAN", "OFF");
+    palSetPadMode(GPIOB, 4, PAL_LOW);
   }
 }
 
@@ -354,6 +362,7 @@ static void read_config(void)
   setReceiverTarget(t);
   wallDewPointTemperatureFactor = config_get_uint(CONFIG_WALL_DEW_POINT_TEMPERATURE_FACTOR_BY_1024);
   fanOnAboveRelativeHumidity = config_get_uint(CONFIG_FAN_ON_ABOVE_MILLI_RELATIVE_HUMIDITY);
+  fanOnMinTime = TIME_S2I(config_get_uint(CONFIG_FAN_ON_MIN_TIME_S));
 }
 
 /*
