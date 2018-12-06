@@ -42,6 +42,7 @@
 #include "drivers/analog.h"
 #include "modules/bme280.h"
 #include "modules/temperature_receiver.h"
+#include "modules/dewpoint.h"
 #include "chprintf.h"
 
 #define LED_RED 0
@@ -54,6 +55,7 @@
 #define MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S 240
 #define MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S 4
 #define PRIVATE_MODE_BUTTON_VALID_FOR_S 30
+#define PRIVATE_MODE_EMPTY_VALID_FOR_S 7
 
 static systime_t motion_sensor_last_active;
 static uint8_t motion_sensor_state;
@@ -69,7 +71,7 @@ static uint8_t occupancySwitchPressed;
 #define OUTSIDE_TEMPERATURE_MAX_AGE_S 86400
 static uint16_t wallDewPointTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
-static sysinterval_t fanOnMinTime;
+static sysinterval_t fanRunOutTime;
 
 /* sets LED 0-2 to given state */
 static void setLed(uint8_t led, uint8_t on)
@@ -171,6 +173,10 @@ static void occupancyIndicatorTick(void)
   uint32_t motionSensorActiveAgo = chVTTimeElapsedSinceX(motion_sensor_last_active);
   uint32_t doorOpenAgo = chVTTimeElapsedSinceX(door_sensor_last_open);
   static uint8_t motion_sensor_active_since_door_closed;
+  static uint8_t door_open_counter; /* for OCCUPANCY_MODE_PRIVATE */
+  /* detection of behaviour: Motion sensor should have sensed activity IF there was any */
+  uint8_t motion_sensor_should_have_been_active_since_door_closed =
+      door_closed && doorOpenAgo > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S + 2);
 
   if(door_closed && !motion_sensor_active_since_door_closed){
     if(doorOpenAgo >= TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S) && motionSensorActiveAgo < (doorOpenAgo - TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S))) {
@@ -195,7 +201,6 @@ static void occupancyIndicatorTick(void)
   switch(state)
   {
   case OCCUPANCY_MODE_EMPTY:
-    node_debug(LOG_LEVEL_INFO, "BATH", "empty");
     /* Room is not empty, when a motion is detected inside :-) */
     if(motionSensorActiveAgo < TIME_S2I(2)) {
       nextState = OCCUPANCY_MODE_OPEN_IN_USE;
@@ -203,7 +208,6 @@ static void occupancyIndicatorTick(void)
     /* other state changes are handled from OPEN_IN_USE state */
     break;
   case OCCUPANCY_MODE_OPEN_IN_USE:
-    node_debug(LOG_LEVEL_INFO, "BATH", "open in use");
     if(door_closed && motion_sensor_active_since_door_closed) {
       nextState = OCCUPANCY_MODE_IN_USE;
     }
@@ -215,14 +219,13 @@ static void occupancyIndicatorTick(void)
       nextState = OCCUPANCY_MODE_PRIVATE;
     }
     if(door_closed && !motion_sensor_active_since_door_closed &&
-        chVTTimeElapsedSinceX(door_sensor_last_open) > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S)) {
+        motion_sensor_should_have_been_active_since_door_closed) {
     /* fast exit of this state to empty when door is closed and no person detected */
       nextState = OCCUPANCY_MODE_EMPTY;
     }
 
     break;
   case OCCUPANCY_MODE_IN_USE:
-    node_debug(LOG_LEVEL_INFO, "BATH", "in use");
     if(occupancyPressedAt) {
       nextState = OCCUPANCY_MODE_PRIVATE;
       occupancyPressedAt = 0;
@@ -238,9 +241,15 @@ static void occupancyIndicatorTick(void)
     break;
   case OCCUPANCY_MODE_PRIVATE:
     if(!door_closed) {
-      nextState = OCCUPANCY_MODE_OPEN_IN_USE;
+      /* allow a short time of door open in private mode */
+      if(++door_open_counter >= PRIVATE_MODE_EMPTY_VALID_FOR_S) {
+        nextState = OCCUPANCY_MODE_OPEN_IN_USE;
+      }
+    } else {
+      door_open_counter = 0;
     }
-    if(motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S)) {
+    if(motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S) ||
+       (motion_sensor_should_have_been_active_since_door_closed && !motion_sensor_active_since_door_closed)) {
       nextState = OCCUPANCY_MODE_EMPTY;
     }
     if(occupancyPressedAt) {
@@ -280,25 +289,12 @@ static void occupancyIndicatorTick(void)
   }
 }
 
-static int16_t calculateDewPoint(int32_t centiTemperature, uint32_t milliHumidity) {
-  float temp = qfp_fdiv(qfp_int2float(centiTemperature), 100);
-  float rh = qfp_fdiv(qfp_int2float(milliHumidity), 100000);
-  float a = 7.5f;
-  float b = 237.3f;
-  float acc = qfp_fdiv(qfp_fmul(a, temp), qfp_fadd(b, temp));
-  float sdd = qfp_fexp(qfp_fmul(acc, 2.30258509299f)); /* sdd excludes factor 6.1078 */
-  float dd = qfp_fmul(rh, sdd); /* dd excludes factor 6.1078 from sdd */
-  float v = qfp_fdiv(qfp_fln(dd), 2.30258509299f);
-  float res = qfp_fdiv(qfp_fmul(b, v), qfp_fsub(a, v));
-
-  return qfp_float2int(qfp_fmul(res, 100));
-}
-
 static void fanControlTick(void)
 {
-  static systime_t fanOnAt;
+  static systime_t fanNotTriggeredAnymoreAt;
+  /* 1: running, not triggered 2: running, triggered */
   static uint8_t fanRunning;
-  uint8_t turnFanOn = 0;
+  uint8_t fanTrigger = 0;
   if(bme_presence)
   {
     sysinterval_t age;
@@ -306,6 +302,7 @@ static void fanControlTick(void)
     int16_t insideDewPoint;
     int16_t insideTemperature;
     uint32_t insideHumidity;
+    /* Todo: We want to work with average (12-24h) outside temperature */
     outsideTemperature = getTargetTemperature(&age);
     if(bme_presence & 1)
     {
@@ -320,38 +317,32 @@ static void fanControlTick(void)
       /* both temperature readings available */
       int16_t wallTemperature;
 
-      /* a factor defines the ratio between inside and outside temperature roughly equalling thermal flow */
+      /* a factor defines the ratio between inside and outside temperature roughly equalling thermal flow / wall isolation */
       wallTemperature = outsideTemperature + (((int32_t)(insideTemperature - outsideTemperature)) * wallDewPointTemperatureFactor / 1024);
       insideDewPoint = calculateDewPoint(insideTemperature, insideHumidity);
       if(wallTemperature < insideDewPoint)
       {
-        turnFanOn = 1;
+        fanTrigger = 1;
       }
-      {
-        uint8_t dbgbuf[20];
-        chsnprintf(dbgbuf, 20, "%d", insideDewPoint);
-        node_debug(LOG_LEVEL_INFO, "DP", dbgbuf);
-        chsnprintf(dbgbuf, 20, "%d", outsideTemperature);
-        node_debug(LOG_LEVEL_INFO, "out", dbgbuf);
-      }
-
     }
     if(insideHumidity > fanOnAboveRelativeHumidity)
     {
-      turnFanOn = 1;
+      fanTrigger = 1;
     }
   }
-  if(turnFanOn && !fanRunning)
+  if(fanTrigger)
   {
-    fanOnAt = chVTGetSystemTimeX();
-    fanRunning = 1;
-    node_debug(LOG_LEVEL_INFO, "FAN", "ON");
+    fanRunning = 2;
     palSetPad(GPIOB, 4);
   }
-  if(!turnFanOn && fanRunning && chVTTimeElapsedSinceX(fanOnAt) > fanOnMinTime)
+  if(!fanTrigger && fanRunning == 2)
+  {
+    fanRunning = 1;
+    fanNotTriggeredAnymoreAt = chVTGetSystemTimeX();
+  }
+  if(!fanTrigger && fanRunning && chVTTimeElapsedSinceX(fanNotTriggeredAnymoreAt) > fanRunOutTime)
   {
     fanRunning = 0;
-    node_debug(LOG_LEVEL_INFO, "FAN", "OFF");
     palClearPad(GPIOB, 4);
   }
 }
@@ -362,7 +353,7 @@ static void read_config(void)
   setReceiverTarget(t);
   wallDewPointTemperatureFactor = config_get_uint(CONFIG_WALL_DEW_POINT_TEMPERATURE_FACTOR_BY_1024);
   fanOnAboveRelativeHumidity = config_get_uint(CONFIG_FAN_ON_ABOVE_MILLI_RELATIVE_HUMIDITY);
-  fanOnMinTime = TIME_S2I(config_get_uint(CONFIG_FAN_ON_MIN_TIME_S));
+  fanRunOutTime = TIME_S2I(config_get_uint(CONFIG_FAN_RUN_OUT_TIME_S));
 }
 
 /*

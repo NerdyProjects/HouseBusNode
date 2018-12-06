@@ -147,11 +147,14 @@ CSRC += nodes/sml.c
 endif
 ifeq ($(NODE),HUMIDITY_ALARM)
 CSRC += nodes/humidity_alarm.c \
+				modules/dewpoint.c \
+				modules/melodies.c \
 				drivers/tone.c
 endif
 ifeq ($(NODE),BATHROOM)
 CSRC += nodes/bathroom.c \
 				modules/temperature_receiver.c \
+				modules/dewpoint.c \
 				drivers/tone.c
 endif
 
