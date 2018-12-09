@@ -44,6 +44,7 @@
 #include "modules/temperature_receiver.h"
 #include "modules/dewpoint.h"
 #include "chprintf.h"
+#include "dsdl/homeautomation/BathroomStatus.h"
 
 #define LED_RED 0
 #define LED_YELLOW 1
@@ -56,6 +57,8 @@
 #define MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S 4
 #define PRIVATE_MODE_BUTTON_VALID_FOR_S 30
 #define PRIVATE_MODE_EMPTY_VALID_FOR_S 7
+
+#define LDR_TICK_INTERVAL_S 10
 
 static systime_t motion_sensor_last_active;
 static uint8_t motion_sensor_state;
@@ -71,6 +74,16 @@ static uint8_t occupancySwitchPressed;
 static uint16_t wallTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
 static sysinterval_t fanRunOutTime;
+
+typedef struct {
+  unsigned brightness:3;
+  unsigned door_open:1;
+  unsigned person_inside:1;
+  unsigned private_mode:1;
+  unsigned fan_running:1;
+} BathroomStatus;
+
+static BathroomStatus bathroomStatus;
 
 /* sets LED 0-2 to given state */
 static void setLed(uint8_t led, uint8_t on)
@@ -131,11 +144,30 @@ static void readButtons(void)
 }
 
 /*
+ * this method calculates a moving average through a window of recent brightnesses
+ * and stores it into the status field.
  * LDR: 59000 soft LED light, 64900 dark, 21000 on a light winter day lunchtime
  */
-static void readLdr(void)
+static void readLdr(BathroomStatus *status)
 {
+  static uint8_t window[128];
+  static uint8_t windowPointer;
+  static uint8_t average;
+  static systime_t lastReadingAt;
+  if(chVTTimeElapsedSinceX(lastReadingAt) >= TIME_S2I(LDR_TICK_INTERVAL_S)) {
+    /* scale from 65535..0 to 0..255 dark..bright */
+    uint8_t v = ~((adc_smp_filtered[0] >> 8));
+    if(status->person_inside) {
+      /* possibility of non-natural lighting; just use previous brightnss again */
+      v = window[windowPointer];
+    }
+    windowPointer = (windowPointer + 1) % sizeof(window);
+    average = (uint16_t)average + v - window[windowPointer];
+    window[windowPointer] = v;
 
+    status->brightness = average >> 5; /* status structure is 3 bits wide */
+    lastReadingAt = chVTGetSystemTimeX();
+  }
 }
 
 static uint8_t readKey(uint8_t key) {
@@ -167,7 +199,7 @@ typedef enum {
   OCCUPANCY_MODE_PRIVATE
 } occupancyMode;
 
-static void occupancyIndicatorTick(void)
+static void occupancyIndicatorTick(BathroomStatus *status)
 {
   static occupancyMode state = OCCUPANCY_MODE_EMPTY;
   static systime_t occupancyPressedAt;
@@ -289,9 +321,12 @@ static void occupancyIndicatorTick(void)
     default:
       break;
   }
+  status->private_mode = (state == OCCUPANCY_MODE_PRIVATE);
+  status->person_inside = (state != OCCUPANCY_MODE_EMPTY);
+  status->door_open = !door_closed;
 }
 
-static void fanControlTick(void)
+static void fanControlTick(BathroomStatus *status)
 {
   static systime_t fanNotTriggeredAnymoreAt;
   /* 1: running, not triggered 2: running, triggered */
@@ -331,6 +366,7 @@ static void fanControlTick(void)
     fanRunning = 0;
     palClearPad(GPIOB, 4);
   }
+  status->fan_running = fanRunning ? 1 : 0;
 }
 
 static void read_config(void)
@@ -342,13 +378,25 @@ static void read_config(void)
   fanRunOutTime = TIME_S2I(config_get_uint(CONFIG_FAN_RUN_OUT_TIME_S));
 }
 
+static void bathroom_status_broadcast(BathroomStatus *status)
+{
+  static uint8_t transfer_id = 0;
+
+  /* the status bitfield is already in line format */
+  canardLockBroadcast(&canard,
+        HOMEAUTOMATION_BATHROOMSTATUS_SIGNATURE,
+        HOMEAUTOMATION_BATHROOMSTATUS_ID, &transfer_id,
+        CANARD_TRANSFER_PRIORITY_LOW, status, HOMEAUTOMATION_BATHROOMSTATUS_MAX_SIZE);
+}
+
 void app_tick(void)
 {
   bme280_app_read();
   readMotionSensor();
-  readLdr();
-  occupancyIndicatorTick();
-  fanControlTick();
+  readLdr(&bathroomStatus);
+  occupancyIndicatorTick(&bathroomStatus);
+  fanControlTick(&bathroomStatus);
+  bathroom_status_broadcast(&bathroomStatus);
 }
 
 void app_fast_tick(void)
