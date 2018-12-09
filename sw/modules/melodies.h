@@ -18,5 +18,7 @@ typedef struct
 
 typedef note* melody;
 
+void melody_play(uint8_t melody, uint8_t volume);
+void melody_tick(void);
 
 #endif /* MODULES_MELODIES_H_ */

@@ -68,8 +68,7 @@ static volatile uint8_t blinkSpeed;
 static uint8_t blinkState;
 static uint8_t occupancySwitchPressed;
 
-#define OUTSIDE_TEMPERATURE_MAX_AGE_S 86400
-static uint16_t wallDewPointTemperatureFactor;
+static uint16_t wallTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
 static sysinterval_t fanRunOutTime;
 
@@ -131,6 +130,9 @@ static void readButtons(void)
   }
 }
 
+/*
+ * LDR: 59000 soft LED light, 64900 dark, 21000 on a light winter day lunchtime
+ */
 static void readLdr(void)
 {
 
@@ -295,41 +297,25 @@ static void fanControlTick(void)
   /* 1: running, not triggered 2: running, triggered */
   static uint8_t fanRunning;
   uint8_t fanTrigger = 0;
-  if(bme_presence)
+  int16_t wallTemperatureDifference;
+  uint32_t insideHumidity;
+  if(bme_presence & 1)
   {
-    sysinterval_t age;
-    int16_t outsideTemperature;
-    int16_t insideDewPoint;
-    int16_t insideTemperature;
-    uint32_t insideHumidity;
-    /* Todo: We want to work with average (12-24h) outside temperature */
-    outsideTemperature = getTargetTemperature(&age);
-    if(bme_presence & 1)
-    {
-      insideTemperature = BMECentiTemperature[0];
-      insideHumidity = BMEMilliHumidity[0];
-    } else {
-      insideTemperature = BMECentiTemperature[1];
-      insideHumidity = BMEMilliHumidity[1];
-    }
-    if(age < TIME_S2I(OUTSIDE_TEMPERATURE_MAX_AGE_S))
-    {
-      /* both temperature readings available */
-      int16_t wallTemperature;
-
-      /* a factor defines the ratio between inside and outside temperature roughly equalling thermal flow / wall isolation */
-      wallTemperature = outsideTemperature + (((int32_t)(insideTemperature - outsideTemperature)) * wallDewPointTemperatureFactor / 1024);
-      insideDewPoint = calculateDewPoint(insideTemperature, insideHumidity);
-      if(wallTemperature < insideDewPoint)
-      {
-        fanTrigger = 1;
-      }
-    }
-    if(insideHumidity > fanOnAboveRelativeHumidity)
-    {
+    insideHumidity = BMEMilliHumidity[0];
+  } else {
+    insideHumidity = BMEMilliHumidity[1];
+  }
+  if(insideHumidity > fanOnAboveRelativeHumidity)
+  {
+    fanTrigger = 1;
+  }
+  if(approximateWallTemperatureDifferenceToDewPoint(&wallTemperatureDifference, wallTemperatureFactor) == 0)
+  {
+    if(wallTemperatureDifference < 0) {
       fanTrigger = 1;
     }
   }
+
   if(fanTrigger)
   {
     fanRunning = 2;
@@ -351,14 +337,10 @@ static void read_config(void)
 {
   uint32_t t = config_get_uint(CONFIG_TEMPERATURE_RECEIVER_TARGET_NODE_ID);
   setReceiverTarget(t);
-  wallDewPointTemperatureFactor = config_get_uint(CONFIG_WALL_DEW_POINT_TEMPERATURE_FACTOR_BY_1024);
+  wallTemperatureFactor = config_get_uint(CONFIG_WALL_TEMPERATURE_FACTOR_BY_1024);
   fanOnAboveRelativeHumidity = config_get_uint(CONFIG_FAN_ON_ABOVE_MILLI_RELATIVE_HUMIDITY);
   fanRunOutTime = TIME_S2I(config_get_uint(CONFIG_FAN_RUN_OUT_TIME_S));
 }
-
-/*
- * LDR: 59000 soft LED light, 64900 dark, 21000 on a light winter day lunchtime
- */
 
 void app_tick(void)
 {
