@@ -78,6 +78,26 @@ typedef homeautomation_BathroomStatus BathroomStatus;
 
 static BathroomStatus bathroomStatus;
 
+/* sets the light: 0 - off, 1 - low, 2 - high */
+static void setLight(uint8_t brightness)
+{
+  switch(brightness)
+  {
+  case 0:
+    palWritePad(GPIOB, 3, 0);
+    palWritePad(GPIOA, 6, 0);
+    break;
+  case 1:
+    palWritePad(GPIOB, 3, 0);
+    palWritePad(GPIOA, 6, 1);
+    break;
+  case 2:
+    palWritePad(GPIOB, 3, 1);
+    palWritePad(GPIOA, 6, 1);
+    break;
+  }
+}
+
 /* sets LED 0-2 to given state */
 static void setLed(uint8_t led, uint8_t on)
 {
@@ -101,7 +121,6 @@ static void readMotionSensor(void)
 
 static void readButtons(void)
 {
-  uint8_t lightSwitch = palReadPad(GPIOB, 1);
   uint8_t occupancySwitch = palReadPad(GPIOA, 5);
   uint8_t doorSensor = palReadPad(GPIOB, 10);
   static uint8_t doorSensorLast;
@@ -384,6 +403,25 @@ static void bathroom_status_broadcast(BathroomStatus *status)
         CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_BATHROOMSTATUS_MAX_SIZE);
 }
 
+static void lightTick(BathroomStatus *status)
+{
+  uint8_t lightSwitch = palReadPad(GPIOB, 1);
+  static uint8_t bright = 0;
+  bright ^= lightSwitch;
+  if(status->person_inside) {
+    if(bright)
+    {
+      setLight(2);
+    } else if(status->brightness <= 2)
+    {
+      setLight(1);
+    }
+  } else {
+    setLight(0);
+    bright = 0;
+  }
+}
+
 void app_tick(void)
 {
   bme280_app_read();
@@ -391,6 +429,7 @@ void app_tick(void)
   readLdr(&bathroomStatus);
   occupancyIndicatorTick(&bathroomStatus);
   fanControlTick(&bathroomStatus);
+  lightTick(&bathroomStatus);
   bathroom_status_broadcast(&bathroomStatus);
 }
 
