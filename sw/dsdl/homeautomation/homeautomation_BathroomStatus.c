@@ -42,19 +42,19 @@ uint32_t homeautomation_BathroomStatus_encode_internal(homeautomation_BathroomSt
     canardEncodeScalar(msg_buf, offset, 3, (void*)&source->brightness); // 7
     offset += 3;
 
-    source->door_open = CANARD_INTERNAL_SATURATE_UNSIGNED(source->door_open, 0)
+    source->door_open = CANARD_INTERNAL_SATURATE_UNSIGNED(source->door_open, 1)
     canardEncodeScalar(msg_buf, offset, 1, (void*)&source->door_open); // 0
     offset += 1;
 
-    source->person_inside = CANARD_INTERNAL_SATURATE_UNSIGNED(source->person_inside, 0)
+    source->person_inside = CANARD_INTERNAL_SATURATE_UNSIGNED(source->person_inside, 1)
     canardEncodeScalar(msg_buf, offset, 1, (void*)&source->person_inside); // 0
     offset += 1;
 
-    source->private_mode = CANARD_INTERNAL_SATURATE_UNSIGNED(source->private_mode, 0)
+    source->private_mode = CANARD_INTERNAL_SATURATE_UNSIGNED(source->private_mode, 1)
     canardEncodeScalar(msg_buf, offset, 1, (void*)&source->private_mode); // 0
     offset += 1;
 
-    source->fan_running = CANARD_INTERNAL_SATURATE_UNSIGNED(source->fan_running, 0)
+    source->fan_running = CANARD_INTERNAL_SATURATE_UNSIGNED(source->fan_running, 1)
     canardEncodeScalar(msg_buf, offset, 1, (void*)&source->fan_running); // 0
     offset += 1;
 

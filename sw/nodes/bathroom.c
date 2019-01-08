@@ -64,7 +64,6 @@ static systime_t motion_sensor_last_active;
 static uint8_t motion_sensor_state;
 static uint8_t door_closed;
 static systime_t door_sensor_last_open;
-static uint16_t ambientBrightness;
 static uint8_t blinkTicks;
 static volatile uint8_t blinkLedNr;
 static volatile uint8_t blinkSpeed;
@@ -75,13 +74,7 @@ static uint16_t wallTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
 static sysinterval_t fanRunOutTime;
 
-typedef struct {
-  unsigned brightness:3;
-  unsigned door_open:1;
-  unsigned person_inside:1;
-  unsigned private_mode:1;
-  unsigned fan_running:1;
-} BathroomStatus;
+typedef homeautomation_BathroomStatus BathroomStatus;
 
 static BathroomStatus bathroomStatus;
 
@@ -150,22 +143,23 @@ static void readButtons(void)
  */
 static void readLdr(BathroomStatus *status)
 {
-  static uint8_t window[128];
+#define LDR_WINDOW_LENGTH 128
+  static uint8_t window[LDR_WINDOW_LENGTH];
   static uint8_t windowPointer;
-  static uint8_t average;
+  static uint16_t sum;
   static systime_t lastReadingAt;
   if(chVTTimeElapsedSinceX(lastReadingAt) >= TIME_S2I(LDR_TICK_INTERVAL_S)) {
     /* scale from 65535..0 to 0..255 dark..bright */
-    uint8_t v = ~((adc_smp_filtered[0] >> 8));
+    uint8_t v = (~adc_smp_filtered[0]) >> 8;
     if(status->person_inside) {
-      /* possibility of non-natural lighting; just use previous brightnss again */
+      /* possibility of non-natural lighting; just use previous brightness again */
       v = window[windowPointer];
     }
-    windowPointer = (windowPointer + 1) % sizeof(window);
-    average = (uint16_t)average + v - window[windowPointer];
+    windowPointer = (windowPointer + 1) % LDR_WINDOW_LENGTH;
+    sum += v - window[windowPointer];
     window[windowPointer] = v;
 
-    status->brightness = average >> 5; /* status structure is 3 bits wide */
+    status->brightness = (sum / LDR_WINDOW_LENGTH) >> (5); /* status structure is 3 bits wide */
     lastReadingAt = chVTGetSystemTimeX();
   }
 }
@@ -381,12 +375,13 @@ static void read_config(void)
 static void bathroom_status_broadcast(BathroomStatus *status)
 {
   static uint8_t transfer_id = 0;
-
+  uint8_t buffer[HOMEAUTOMATION_BATHROOMSTATUS_MAX_SIZE];
+  homeautomation_BathroomStatus_encode(status, buffer);
   /* the status bitfield is already in line format */
   canardLockBroadcast(&canard,
         HOMEAUTOMATION_BATHROOMSTATUS_SIGNATURE,
         HOMEAUTOMATION_BATHROOMSTATUS_ID, &transfer_id,
-        CANARD_TRANSFER_PRIORITY_LOW, status, HOMEAUTOMATION_BATHROOMSTATUS_MAX_SIZE);
+        CANARD_TRANSFER_PRIORITY_LOW, buffer, HOMEAUTOMATION_BATHROOMSTATUS_MAX_SIZE);
 }
 
 void app_tick(void)

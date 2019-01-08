@@ -156,6 +156,7 @@ ifeq ($(NODE),BATHROOM)
 CSRC += nodes/bathroom.c \
 				modules/temperature_receiver.c \
 				modules/dewpoint.c \
+				dsdl/homeautomation/homeautomation_BathroomStatus.c \
 				drivers/tone.c
 endif
 
@@ -192,6 +193,7 @@ ASMXSRC = $(ALLXASMSRC)
 INCDIR = $(ALLINC) \
          board \
          libcanard \
+         dsdl \
          qfplib-20161124
 
 
