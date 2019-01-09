@@ -405,9 +405,12 @@ static void bathroom_status_broadcast(BathroomStatus *status)
 
 static void lightTick(BathroomStatus *status)
 {
-  uint8_t lightSwitch = palReadPad(GPIOB, 1);
+  uint8_t lightSwitch = !palReadPad(GPIOB, 1);
   static uint8_t bright = 0;
-  bright ^= lightSwitch;
+  if (lightSwitch)
+  {
+    bright = !bright;
+  }
   if(status->person_inside) {
     if(bright)
     {
