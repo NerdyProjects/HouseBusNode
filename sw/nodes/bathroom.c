@@ -53,8 +53,9 @@
 #define KEY_OCCUPANCY 0
 
 #define MOTION_TRIGGER_ACTIVE_S 45
-#define MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S 240
-#define MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S 4
+#define MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S 900
+#define MOTION_TRIGGER_BLOCK_AFTER_DOOR_CLOSE_S 4
+#define MOTION_TRIGGER_AFTER_DOOR_CLOSE_NOT_EMPTY_S 10
 #define PRIVATE_MODE_BUTTON_VALID_FOR_S 30
 #define PRIVATE_MODE_EMPTY_VALID_FOR_S 7
 
@@ -69,6 +70,7 @@ static volatile uint8_t blinkLedNr;
 static volatile uint8_t blinkSpeed;
 static uint8_t blinkState;
 static uint8_t occupancySwitchPressed;
+static uint8_t brightnessSwitchPressed;
 
 static uint16_t wallTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
@@ -121,7 +123,6 @@ static void readMotionSensor(void)
 
 static void readButtons(void)
 {
-  uint8_t occupancySwitch = palReadPad(GPIOA, 5);
   uint8_t doorSensor = palReadPad(GPIOB, 10);
   static uint8_t doorSensorLast;
   static uint8_t doorSensorCount;
@@ -140,6 +141,7 @@ static void readButtons(void)
   doorSensorLast = doorSensor;
 
   {
+    uint8_t occupancySwitch = palReadPad(GPIOA, 5);
     static uint8_t occupancySwitchLast;
     static uint8_t occupancySwitchCount;
     if(occupancySwitch == occupancySwitchLast) {
@@ -151,6 +153,22 @@ static void readButtons(void)
       }
     } else {
       occupancySwitchCount = 0;
+    }
+  }
+
+  {
+    uint8_t brightnessSwitch = palReadPad(GPIOB, 1);
+    static uint8_t brightnessSwitchLast;
+    static uint8_t brightnessSwitchCount;
+    if(brightnessSwitch == brightnessSwitchLast) {
+      if(brightnessSwitchCount == 10 && !brightnessSwitch) {
+        brightnessSwitchPressed = 1;
+      }
+      if(brightnessSwitchCount <= 10) {
+        brightnessSwitchCount++;
+      }
+    } else {
+      brightnessSwitchCount = 0;
     }
   }
 }
@@ -223,10 +241,10 @@ static void occupancyIndicatorTick(BathroomStatus *status)
   static uint8_t door_open_counter; /* for OCCUPANCY_MODE_PRIVATE */
   /* detection of behaviour: Motion sensor should have sensed activity IF there was any */
   uint8_t motion_sensor_should_have_been_active_since_door_closed =
-      door_closed && doorOpenAgo > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S + 2);
+      door_closed && doorOpenAgo > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_NOT_EMPTY_S);
 
   if(door_closed && !motion_sensor_active_since_door_closed){
-    if(doorOpenAgo >= TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S) && motionSensorActiveAgo < (doorOpenAgo - TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_MIN_S))) {
+    if(doorOpenAgo >= TIME_S2I(MOTION_TRIGGER_BLOCK_AFTER_DOOR_CLOSE_S) && motionSensorActiveAgo < (doorOpenAgo - TIME_S2I(MOTION_TRIGGER_BLOCK_AFTER_DOOR_CLOSE_S))) {
       motion_sensor_active_since_door_closed = 1;
     }
   } else if(!door_closed) {
@@ -405,24 +423,33 @@ static void bathroom_status_broadcast(BathroomStatus *status)
 
 static void lightTick(BathroomStatus *status)
 {
-  uint8_t lightSwitch = !palReadPad(GPIOB, 1);
   static uint8_t bright = 0;
-  if (lightSwitch)
+  uint8_t targetBrightness = 0;
+  if (brightnessSwitchPressed)
   {
-    bright = !bright;
+    if(status->person_inside) {
+      /* only accept button press when somebody is in the room */
+      bright = !bright;
+    }
+    brightnessSwitchPressed = 0;
   }
   if(status->person_inside) {
-    if(bright)
+    if(status->brightness == 0) {
+      targetBrightness = 1;
+    }
+    if(bright && status->brightness <= 3)
     {
-      setLight(2);
-    } else if(status->brightness <= 2)
-    {
-      setLight(1);
+      /* only offer bright light when natural lighting is not bright enough */
+      targetBrightness = 2;
     }
   } else {
-    setLight(0);
+    /* light is only available when a person is in the room.
+     * Also, reset to non-bright when room is empty
+     */
+    targetBrightness = 0;
     bright = 0;
   }
+  setLight(targetBrightness);
 }
 
 void app_tick(void)
