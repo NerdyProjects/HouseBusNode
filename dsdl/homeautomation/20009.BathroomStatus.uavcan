@@ -1,0 +1,5 @@
+uint3 brightness
+bool door_open
+bool person_inside
+bool private_mode
+bool fan_running
