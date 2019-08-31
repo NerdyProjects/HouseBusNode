@@ -140,7 +140,9 @@ CSRC += nodes/viessmann_trimatik.c \
 endif
 ifeq ($(NODE),HALLWAY_LIGHT)
 CSRC += nodes/hallway_light.c \
-				modules/time_data.c
+				modules/time_data.c \
+        modules/brightness_data.c \
+        dsdl/homeautomation/homeautomation_BathroomStatus.c
 endif
 ifeq ($(NODE),SML)
 CSRC += nodes/sml.c

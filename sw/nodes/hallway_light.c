@@ -3,6 +3,7 @@
 #include "../config.h"
 #include "../drivers/pwm.h"
 #include "modules/time_data.h"
+#include "modules/brightness_data.h"
 #include "../drivers/analog.h" // for random data
 
 /* Hallway light beginning from door .. backyard */
@@ -18,17 +19,11 @@
 #define HALLWAY_MOTION_SENSOR_PAD 4
 #define HALLWAY_MOTION_SENSOR_MAX_SECONDS 30
 
-/* GPIOB 5 is manual switch input, pull up */
-#define HALLWAY_SWITCH_PORT GPIOB
-#define HALLWAY_SWITCH_PAD 5
-#define HALLWAY_SWITCH_MAX_SECONDS 120
-
 #define ANIMATION_NONE 0
 #define ANIMATION_FADE 1
 #define ANIMATION_PLAY 2
 
 static volatile uint32_t hallway_motion_sensor_trigger = 0;
-static volatile uint32_t hallway_switch_trigger = 0;
 
 typedef struct {
   int animation;
@@ -42,11 +37,6 @@ typedef struct {
 static void hallway_motion_sensor_callback(void* arg)
 {
   hallway_motion_sensor_trigger = 1;
-}
-
-static void hallway_switch_callback(void* arg)
-{
-  hallway_switch_trigger = 0; // disabled because it triggered eratically
 }
 
 static int get_fade_val(int step, int fade_from, int fade_to, int length)
@@ -170,13 +160,10 @@ void app_init(void)
   pwm_set_dc(STAIRCASE_K20_2, 0.1*65000);
 
   palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT);
-  palSetPadMode(HALLWAY_SWITCH_PORT, HALLWAY_SWITCH_PAD, PAL_MODE_INPUT_PULLDOWN);
 
   chSysLock();
   palEnablePadEventI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_EVENT_MODE_RISING_EDGE);
   palSetPadCallbackI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, hallway_motion_sensor_callback, NULL);
-  palEnablePadEventI(HALLWAY_SWITCH_PORT, HALLWAY_SWITCH_PAD, PAL_EVENT_MODE_RISING_EDGE);
-  palSetPadCallbackI(HALLWAY_SWITCH_PORT, HALLWAY_SWITCH_PAD, hallway_switch_callback, NULL);
   chSysUnlock();
 }
 
@@ -187,7 +174,6 @@ void app_fast_tick(void)
   static int hallway_animation = ANIMATION_NONE;
   static animation_state_t animation;
   static systime_t hallway_motion_sensor_on_time;
-  static systime_t hallway_switch_on_time;
 
   int next_hallway_brightness = 0;
 
@@ -195,21 +181,21 @@ void app_fast_tick(void)
 
   uint8_t hour = time_hour; // UTC
 
-  if(!time_daylight)
+  if(brightness < 5)
   {
     if(hour <= 21)
     {
       // evening mode
-      next_hallway_brightness = 2000;
+      next_hallway_brightness = 1000;
       hallway_motion_sensor_brightness = 20000;
-      pwm_set_dc(STAIRCASE_K20_1, 6000);
-      pwm_set_dc(STAIRCASE_K20_2, 1500);
+      pwm_set_dc(STAIRCASE_K20_1, 5000);
+      pwm_set_dc(STAIRCASE_K20_2, 1200);
     }
     else
     {
       // night mode
-      next_hallway_brightness = 70;
-      hallway_motion_sensor_brightness = 5000;
+      next_hallway_brightness = 50;
+      hallway_motion_sensor_brightness = 2000;
       pwm_set_dc(STAIRCASE_K20_1, 350);
       pwm_set_dc(STAIRCASE_K20_2, 100);
     }
@@ -229,27 +215,10 @@ void app_fast_tick(void)
     hallway_motion_sensor_on_time = chVTGetSystemTime();
   }
 
-  if(hallway_switch_trigger)
-  {
-    hallway_switch_trigger = 0;
-    // switch off if already triggered
-    if (hallway_switch_on_time + TIME_S2I(HALLWAY_SWITCH_MAX_SECONDS) > chVTGetSystemTime())
-    {
-      hallway_switch_on_time -= TIME_S2I(HALLWAY_SWITCH_MAX_SECONDS);
-    }
-    hallway_switch_on_time = chVTGetSystemTime();
-  }
-
   // override target brightness if motion sensor is on
   if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) > chVTGetSystemTime())
   {
     next_hallway_brightness = hallway_motion_sensor_brightness;
-  }
-
-  // override target brightness if switch is on
-  if (hallway_switch_on_time + TIME_S2I(HALLWAY_SWITCH_MAX_SECONDS) > chVTGetSystemTime())
-  {
-    next_hallway_brightness = 40000;
   }
 
   // accept next_hallway_brightness, start animation if changed
@@ -300,7 +269,6 @@ void app_fast_tick(void)
 
 void app_tick(void)
 {
-
 }
 
 void app_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
