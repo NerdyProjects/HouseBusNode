@@ -139,6 +139,16 @@ int32_t config_get_int(config_param_t param)
   return res;
 }
 
+float config_get_float(config_param_t param)
+{
+  float res;
+  if (config_get_param_size(param) == 4)
+  {
+    config_get(param, &res, NULL);
+  }
+  return res;
+}
+
 /* writes a configuration parameter.
  * The caller can supply a length up to the reserved space of the parameter field.
  * If given size is bigger than the actual parameter size, excess data is silently ignored.

@@ -277,6 +277,11 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
         uint8_t str[128];
         payloadExtractArray(transfer, 3, transfer->payload_head[2], str);
         config_set(config_id, str, transfer->payload_head[2]);
+      } else if(unionTag == 2)
+      {
+        float value;
+        canardDecodeScalar(transfer, 16, 32, 1, &value);
+        config_set(config_id, &value, 4);
       }
       app_config_update();
     }
@@ -292,6 +297,11 @@ static void onParamGetSet(CanardInstance* ins, CanardRxTransfer* transfer)
       buffer[0] = 1;
       config_get(config_id, &buffer[1], NULL);
       response_size = 1 + 8 + 3;
+      break;
+    case CONFIG_PARAM_FLOAT32:
+      buffer[0] = 2;
+      config_get(config_id, &buffer[1], NULL);
+      response_size = 1 + 4 + 3;
       break;
     default:
       util_assert(0);

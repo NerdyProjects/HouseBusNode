@@ -25,7 +25,8 @@
 enum config_param_type {
   CONFIG_PARAM_VOID,
   CONFIG_PARAM_INT,
-  CONFIG_PARAM_STRING
+  CONFIG_PARAM_STRING,
+  CONFIG_PARAM_FLOAT32
 };
 
 typedef enum config_param_type config_param_type_t;
@@ -85,6 +86,10 @@ typedef enum config_param_type config_param_type_t;
   X(CONFIG_HUMIDITY_ALARM_FIRST_MELODY, 4, CONFIG_PARAM_INT), \
   X(CONFIG_HUMIDITY_ALARM_REPEAT_MELODY, 4, CONFIG_PARAM_INT), \
   X(CONFIG_HUMIDITY_ALARM_VOLUME, 4, CONFIG_PARAM_INT), \
+  X(CONFIG_BOILER_TARGET_POWER, 4, CONFIG_PARAM_INT), \
+  X(CONFIG_BOILER_PID_KP, 4, CONFIG_PARAM_FLOAT32), \
+  X(CONFIG_BOILER_PID_KD, 4, CONFIG_PARAM_FLOAT32), \
+  X(CONFIG_BOILER_PID_KI, 4, CONFIG_PARAM_FLOAT32), \
   X(CONFIG_PARAM_LAST, 0, CONFIG_PARAM_VOID)
 
 
@@ -110,6 +115,7 @@ int config_get(config_param_t param, void *dst, uint8_t *valid);
 int config_get_name(config_param_t param, uint8_t *dst);
 uint32_t config_get_uint(config_param_t param);
 int32_t config_get_int(config_param_t param);
+float config_get_float(config_param_t param);
 int config_set(config_param_t param, void *src, uint8_t size);
 int config_set_uint(config_param_t param, uint32_t v);
 int config_get_id_by_name(uint8_t *name, uint8_t name_len);
