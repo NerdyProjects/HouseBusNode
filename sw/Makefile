@@ -161,6 +161,11 @@ CSRC += nodes/bathroom.c \
 				dsdl/homeautomation/homeautomation_BathroomStatus.c \
 				drivers/tone.c
 endif
+ifeq ($(NODE),boiler)
+CSRC += nodes/boiler.c \
+        modules/pid.c \
+        dsdl/homeautomation/homeautomation_Obis.c
+endif
 
 
 

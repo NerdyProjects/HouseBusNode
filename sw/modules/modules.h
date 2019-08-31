@@ -10,6 +10,7 @@
 #include "time_data.h"
 #include "brightness_data.h"
 #include "temperature_receiver.h"
+#include "obis.h"
 
 
 #endif /* MODULES_MODULES_H_ */

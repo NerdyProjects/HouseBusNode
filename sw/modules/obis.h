@@ -1,0 +1,1 @@
+void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer);
