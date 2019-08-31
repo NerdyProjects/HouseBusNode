@@ -14,8 +14,8 @@
 #define halfwaves_to_tick(h) ((h)*10/TICK_MS)
 
 static uint8_t pin;
-volatile static uint8_t halfwaves_on;
-volatile static uint8_t halfwaves_total;
+static volatile uint8_t halfwaves_on;
+static volatile uint8_t halfwaves_total;
 
 uint8_t dimmer_is_present(void)
 {
@@ -43,6 +43,11 @@ void dimmer_read_config(void)
 {
   halfwaves_total = config_get_uint(CONFIG_DIMMER_PERIOD_IN_HALFWAVES);
   uint8_t dc = config_get_uint(CONFIG_DIMMER_DUTY_CYCLE);
+  halfwaves_on = (dc * halfwaves_total) / 100;
+}
+
+void dimmer_set_dc(uint8_t dc)
+{
   halfwaves_on = (dc * halfwaves_total) / 100;
 }
 
