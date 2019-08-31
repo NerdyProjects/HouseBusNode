@@ -63,12 +63,12 @@ tstart = time.time()
 while time.time()-tstart < float(5):
     try:
         node.spin(1)
-    except:
+    except Exception:
         pass
 
 # wait for updates to complete
 while not update_complete:
     try:
         node.spin(1)
-    except:
+    except Exception:
         pass
