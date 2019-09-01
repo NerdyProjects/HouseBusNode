@@ -28,20 +28,29 @@
 #include "qfplib.h"
 
 static int32_t target_power = 100;
-static pid_control_t pid_config;
+static volatile pid_control_t pid_config;
 
 static volatile uint8_t controller_dc;
 static volatile uint8_t controller_update;
 
 static void reconfigure(void)
 {
+    char dbgbuf[20];
+    float kp = config_get_float(CONFIG_BOILER_PID_KP);
+    float kd = config_get_float(CONFIG_BOILER_PID_KD);
+    float ki = config_get_float(CONFIG_BOILER_PID_KI);
     pid_init(
         &pid_config,
-        config_get_float(CONFIG_BOILER_PID_KP),
-        config_get_float(CONFIG_BOILER_PID_KD),
-        config_get_float(CONFIG_BOILER_PID_KI)
+        kp,
+        kd,
+        ki
         );
     target_power = config_get_int(CONFIG_BOILER_TARGET_POWER);
+    chsnprintf(dbgbuf, 20, "kp %d kd %d", qfp_float2int(qfp_fmul(kp, 1000)), qfp_float2int(qfp_fmul(kd, 1000)));
+    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+    chsnprintf(dbgbuf, 20, "ki %d tgt %d", qfp_float2int(qfp_fmul(ki, 1000)), target_power);
+    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+    dimmer_read_config();
 }
 
 void app_init(void)
@@ -86,6 +95,7 @@ void app_config_update(void)
 
 void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
 {
+    char dbgbuf[20];
     homeautomation_Obis message;
     homeautomation_Obis_decode(transfer, 0, &message, NULL);
     if(message.code[0] == 16 && message.code[1] == 7) {
@@ -100,6 +110,10 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
         }
         int32_t e = target_power - current_power;
         int32_t result = pid_tick(&pid_config, e, transfer->timestamp);
+        chsnprintf(dbgbuf, 20, "p %d e %d", current_power, e);
+        node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+        chsnprintf(dbgbuf, 20, "PID %d", result);
+        node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
         if(result < 0) {
             controller_dc = 0;
         } else if(result > 100)
