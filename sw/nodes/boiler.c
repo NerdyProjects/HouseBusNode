@@ -20,6 +20,7 @@
 #include "ch.h"
 #include "node.h"
 #include "dsdl/homeautomation/Obis.h"
+#include "dsdl/homeautomation/BoilerStatus.h"
 #include "modules/pid.h"
 #include "config.h"
 #include "chprintf.h"
@@ -79,6 +80,24 @@ static int32_t calculate_thermistor_temperature(uint16_t adc)
     return qfp_float2int(qfp_fmul(t, 100));
 }
 
+static void send_status_message(uint8_t dc)
+{
+    uint8_t transferStatus;
+    uint8_t buf[HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE];
+    homeautomation_BoilerStatus status;
+    status.duty_cycle = dc;
+    status.temperature = boiler_temperature;
+    homeautomation_BoilerStatus_encode(&status, buf);
+    canardLockBroadcast(&canard,
+    HOMEAUTOMATION_BOILERSTATUS_SIGNATURE,
+    HOMEAUTOMATION_BOILERSTATUS_ID,
+    &transferStatus,
+    CANARD_TRANSFER_PRIORITY_LOW,
+    buf,
+    HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE
+    );
+}
+
 void app_tick(void)
 {
     
@@ -87,6 +106,7 @@ void app_tick(void)
     if(chVTTimeElapsedSinceX(controller_last_update) > TIME_S2I(CONTROLLER_TIMEOUT)) {
         node_debug(LOG_LEVEL_ERROR, "BOIL", "STOP boiler no meter reading");
         dimmer_set_dc(0);
+        send_status_message(0);
     }
 }
 
@@ -102,6 +122,7 @@ void app_fast_tick(void)
         chsnprintf(dbgbuf, 20, "dc %3d T %5d", controller_dc, boiler_temperature);
         node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
         dimmer_set_dc(target_dc);
+        send_status_message(target_dc);
         controller_update = 0;
     }
 }

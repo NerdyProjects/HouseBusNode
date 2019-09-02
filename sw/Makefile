@@ -164,7 +164,8 @@ endif
 ifeq ($(NODE),boiler)
 CSRC += nodes/boiler.c \
         modules/pid.c \
-        dsdl/homeautomation/homeautomation_Obis.c
+        dsdl/homeautomation/homeautomation_Obis.c \
+        dsdl/homeautomation/homeautomation_BoilerStatus.c
 endif
 
 

@@ -40,14 +40,14 @@ uint32_t homeautomation_ConductionSensor_encode_internal(homeautomation_Conducti
 {
     uint32_t c = 0;
 
-    source->error = CANARD_INTERNAL_SATURATE_UNSIGNED(source->error, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->error); // 0
+    source->error = CANARD_INTERNAL_SATURATE_UNSIGNED(source->error, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->error); // 1
     offset += 1;
 
     // Static array (status)
     for (c = 0; c < 7; c++)
     {
-        canardEncodeScalar(msg_buf, offset, 1, (void*)(source->status + c)); // 0
+        canardEncodeScalar(msg_buf, offset, 1, (void*)(source->status + c)); // 1
         offset += 1;
     }
 

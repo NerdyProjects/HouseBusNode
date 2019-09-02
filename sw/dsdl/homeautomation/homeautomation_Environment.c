@@ -38,12 +38,12 @@ uint32_t homeautomation_Environment_encode_internal(homeautomation_Environment* 
   uint32_t offset,
   uint8_t CANARD_MAYBE_UNUSED(root_item))
 {
-    source->humidity_valid = CANARD_INTERNAL_SATURATE_UNSIGNED(source->humidity_valid, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->humidity_valid); // 0
+    source->humidity_valid = CANARD_INTERNAL_SATURATE_UNSIGNED(source->humidity_valid, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->humidity_valid); // 1
     offset += 1;
 
-    source->pressure_valid = CANARD_INTERNAL_SATURATE_UNSIGNED(source->pressure_valid, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->pressure_valid); // 0
+    source->pressure_valid = CANARD_INTERNAL_SATURATE_UNSIGNED(source->pressure_valid, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->pressure_valid); // 1
     offset += 1;
 
     source->temperature = CANARD_INTERNAL_SATURATE(source->temperature, 262143)

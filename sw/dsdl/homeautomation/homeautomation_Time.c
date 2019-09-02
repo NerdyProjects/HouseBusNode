@@ -42,8 +42,8 @@ uint32_t homeautomation_Time_encode_internal(homeautomation_Time* source,
     canardEncodeScalar(msg_buf, offset, 56, (void*)&source->usec); // 72057594037927935
     offset += 56;
 
-    source->daylight = CANARD_INTERNAL_SATURATE_UNSIGNED(source->daylight, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->daylight); // 0
+    source->daylight = CANARD_INTERNAL_SATURATE_UNSIGNED(source->daylight, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->daylight); // 1
     offset += 1;
 
     return offset;

@@ -54,16 +54,16 @@ uint32_t homeautomation_HeaterStatus_encode_internal(homeautomation_HeaterStatus
     canardEncodeScalar(msg_buf, offset, 15, (void*)&source->temperature_flow_target); // 16383
     offset += 15;
 
-    source->circulation = CANARD_INTERNAL_SATURATE_UNSIGNED(source->circulation, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->circulation); // 0
+    source->circulation = CANARD_INTERNAL_SATURATE_UNSIGNED(source->circulation, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->circulation); // 1
     offset += 1;
 
-    source->burner = CANARD_INTERNAL_SATURATE_UNSIGNED(source->burner, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->burner); // 0
+    source->burner = CANARD_INTERNAL_SATURATE_UNSIGNED(source->burner, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->burner); // 1
     offset += 1;
 
-    source->burner_actually_firing = CANARD_INTERNAL_SATURATE_UNSIGNED(source->burner_actually_firing, 0)
-    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->burner_actually_firing); // 0
+    source->burner_actually_firing = CANARD_INTERNAL_SATURATE_UNSIGNED(source->burner_actually_firing, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->burner_actually_firing); // 1
     offset += 1;
 
     return offset;
