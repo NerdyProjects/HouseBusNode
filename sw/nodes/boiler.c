@@ -27,11 +27,18 @@
 #include "drivers/analog.h"
 #include "qfplib.h"
 
+/* if no controller output is generated in that time (e.g. no obis message received), turn off the boiler */
+#define CONTROLLER_TIMEOUT 15
+
 static int32_t target_power = 100;
 static volatile pid_control_t pid_config;
 
 static volatile uint8_t controller_dc;
 static volatile uint8_t controller_update;
+static volatile uint32_t controller_last_update;
+
+/* temperature in centidegrees: 2500 is 25.00 degrees celsius */
+static volatile int32_t boiler_temperature;
 
 static void reconfigure(void)
 {
@@ -74,16 +81,27 @@ static int32_t calculate_thermistor_temperature(uint16_t adc)
 
 void app_tick(void)
 {
-    char dbgbuf[20];
-    chsnprintf(dbgbuf, 20, "dc %3d T %5d", controller_dc, calculate_thermistor_temperature(adc_smp_filtered[0]));
-    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
-    /* TODO: turn off boiler when there is no obis message received */
+    
+    boiler_temperature = calculate_thermistor_temperature(adc_smp_filtered[0]);
+    /* turn off boiler when there is no obis message received */
+    if(chVTTimeElapsedSinceX(controller_last_update) > TIME_S2I(CONTROLLER_TIMEOUT)) {
+        node_debug(LOG_LEVEL_ERROR, "BOIL", "STOP boiler no meter reading");
+        dimmer_set_dc(0);
+    }
 }
 
 void app_fast_tick(void)
 {
     if(controller_update) {
-        dimmer_set_dc(controller_dc);
+        char dbgbuf[20];
+        uint8_t target_dc = controller_dc;
+        if(boiler_temperature > 75000)
+        {
+            target_dc = 0;
+        }
+        chsnprintf(dbgbuf, 20, "dc %3d T %5d", controller_dc, boiler_temperature);
+        node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+        dimmer_set_dc(target_dc);
         controller_update = 0;
     }
 }
@@ -93,11 +111,71 @@ void app_config_update(void)
     reconfigure();
 }
 
+static void regulate(int32_t current_power, uint32_t timestamp)
+{
+    char dbgbuf[20];
+    int32_t e = target_power - current_power;
+    int32_t result = pid_tick(&pid_config, e, timestamp);
+    chsnprintf(dbgbuf, 20, "e %d", e);
+    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+    chsnprintf(dbgbuf, 20, "PID %d", result);
+    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+    if(result < 0) {
+        controller_dc = 0;
+    } else if(result > 100)
+    {
+        controller_dc = 100;
+    } else {
+        controller_dc = result;
+    }
+    controller_last_update = timestamp;
+    controller_update = 1;
+}
+
 void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
 {
+    static uint64_t last_180meter_reading;
+    static uint32_t last_180meter_reading_ts;
+    static uint64_t last_280meter_reading;
+    static uint32_t last_280meter_reading_ts;
+    static int32_t last180reading;
+    static uint8_t fresh180reading;
     char dbgbuf[20];
     homeautomation_Obis message;
     homeautomation_Obis_decode(transfer, 0, &message, NULL);
+    if(message.code[0] == 1 && message.code[1] == 8 && message.code[2] == 0) {
+      /* total meter reading. Unit is 0.1 Wh */
+        if(last_180meter_reading != 0) {
+            int64_t difference = (message.value - last_180meter_reading);
+            uint32_t time_difference = TIME_I2MS(transfer->timestamp - last_180meter_reading_ts);
+            int32_t p_180 = qfp_float2int(qfp_fmul(qfp_fdiv(qfp_int2float(difference), time_difference), 360000));
+            chsnprintf(dbgbuf, 20, "d1.8.0 %d", p_180);
+            node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+            fresh180reading = 1;
+            last180reading = p_180;
+        }
+        last_180meter_reading = message.value;
+        last_180meter_reading_ts = transfer->timestamp;
+    }
+    if(message.code[0] == 2 && message.code[1] == 8 && message.code[2] == 0) {
+      /* total meter reading. Unit is 0.1 Wh */
+        if(last_280meter_reading != 0) {
+            int64_t difference = (message.value - last_280meter_reading);
+            uint32_t time_difference = TIME_I2MS(transfer->timestamp - last_280meter_reading_ts);
+            int32_t p_280 = qfp_float2int(qfp_fmul(qfp_fdiv(qfp_int2float(difference), time_difference), 360000));
+            chsnprintf(dbgbuf, 20, "d2.8.0 %d", p_280);
+            node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
+            if(fresh180reading) {
+                regulate(last180reading - p_280, transfer->timestamp);
+                fresh180reading = 0;
+            } else {
+                node_debug(LOG_LEVEL_WARNING, "BOIL", "received 280 without 180");
+            }
+            
+        }
+        last_280meter_reading = message.value;
+        last_280meter_reading_ts = transfer->timestamp;
+    }
     if(message.code[0] == 16 && message.code[1] == 7) {
         /* instantaneous power sum */
         int32_t current_power;
@@ -108,21 +186,9 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
         } else {
             current_power = message.value;
         }
-        int32_t e = target_power - current_power;
-        int32_t result = pid_tick(&pid_config, e, transfer->timestamp);
-        chsnprintf(dbgbuf, 20, "p %d e %d", current_power, e);
+        chsnprintf(dbgbuf, 20, "16.7.0 %d", current_power);
         node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
-        chsnprintf(dbgbuf, 20, "PID %d", result);
-        node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
-        if(result < 0) {
-            controller_dc = 0;
-        } else if(result > 100)
-        {
-            controller_dc = 100;
-        } else {
-            controller_dc = result;
-        }
-        controller_update = 1;
+        //regulate(current_power, transfer->timestamp);
     }
 
 }
