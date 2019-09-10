@@ -31,7 +31,7 @@ def monitor_update_handler(e):
             else:
                 print("found node in unknown mode")
 
-            if e.entry.status.mode != e.entry.status.MODE_SOFTWARE_UPDATE:
+            if e.entry.status.mode != e.entry.status.MODE_SOFTWARE_UPDATE or not update_started:
                 if update_started == True:
                     print('update complete')
                     update_complete = True

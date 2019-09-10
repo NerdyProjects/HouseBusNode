@@ -8,6 +8,9 @@
 #ifndef UAVCAN_H_
 #define UAVCAN_H_
 
+#include "dsdl/homeautomation/BathroomStatus.h"
+#include "dsdl/homeautomation/BoilerStatus.h"
+
  /* Some useful constants defined by the UAVCAN specification.
  * Data type signature values can be easily obtained with the script show_data_type_info.py
  */

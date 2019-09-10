@@ -28,8 +28,22 @@
 #include "drivers/analog.h"
 #include "qfplib.h"
 
-/* if no controller output is generated in that time (e.g. no obis message received), turn off the boiler */
+/* if no controller output is generated in that time in seconds (e.g. no obis message received), turn off the boiler */
 #define CONTROLLER_TIMEOUT 15
+/* if no packet from other node received in that number of seconds consider it as offline */
+#define OTHER_NODE_TIMEOUT 15
+
+#define MAX_OTHER_BOILER_NODES 3
+
+typedef struct
+{
+    int32_t temperature;
+    uint32_t last_update;
+    uint8_t node_id;
+    uint8_t dc;    
+    uint8_t priority;
+} OtherBoilerStatus;
+
 
 static int32_t target_power = 100;
 static volatile pid_control_t pid_config;
@@ -37,13 +51,17 @@ static volatile pid_control_t pid_config;
 static volatile uint8_t controller_dc;
 static volatile uint8_t controller_update;
 static volatile uint32_t controller_last_update;
+static volatile int32_t max_boiler_temperature;
 
 /* temperature in centidegrees: 2500 is 25.00 degrees celsius */
 static volatile int32_t boiler_temperature;
 
+static volatile OtherBoilerStatus other_boiler_status[MAX_OTHER_BOILER_NODES];
+
 static void reconfigure(void)
 {
     char dbgbuf[20];
+    max_boiler_temperature = config_get_int(CONFIG_BOILER_MAX_TEMPERATURE);
     float kp = config_get_float(CONFIG_BOILER_PID_KP);
     float kd = config_get_float(CONFIG_BOILER_PID_KD);
     float ki = config_get_float(CONFIG_BOILER_PID_KI);
@@ -80,6 +98,14 @@ static int32_t calculate_thermistor_temperature(uint16_t adc)
     return qfp_float2int(qfp_fmul(t, 100));
 }
 
+static uint8_t calculate_priority(void)
+{
+    if(boiler_temperature > max_boiler_temperature) {
+        return 0;
+    }
+    return 1;
+}
+
 static void send_status_message(uint8_t dc)
 {
     uint8_t transferStatus;
@@ -87,6 +113,7 @@ static void send_status_message(uint8_t dc)
     homeautomation_BoilerStatus status;
     status.duty_cycle = dc;
     status.temperature = boiler_temperature;
+    status.priority =  calculate_priority();
     homeautomation_BoilerStatus_encode(&status, buf);
     canardLockBroadcast(&canard,
     HOMEAUTOMATION_BOILERSTATUS_SIGNATURE,
@@ -96,6 +123,29 @@ static void send_status_message(uint8_t dc)
     buf,
     HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE
     );
+}
+
+static uint8_t transform_dc(uint8_t dc)
+{
+    uint8_t i;
+    /* offset of 2 so the result is dc when there is no other node and we have a balanced priority. */
+    int8_t sum_priorities = 2;
+    for(i = 0; i < MAX_OTHER_BOILER_NODES; ++i) {
+        if(other_boiler_status[i].node_id) {
+            if(chVTTimeElapsedSinceX(other_boiler_status[i].last_update) < TIME_S2I(OTHER_NODE_TIMEOUT)) {
+                sum_priorities += other_boiler_status[i].priority;
+            } else {
+                other_boiler_status[i].node_id = 0;
+            }
+        }
+    }
+    /* priorities can be integers 0..15. 0 is the "zero/off" priority, 1 the "equally balanced", bigger nummers define a higher priority.
+    when there is two other nodes with balanced priority, each dc needs to be 1/3. If this node has a higher priority, it takes a bigger part here as well. */
+    sum_priorities -= calculate_priority();
+    if(sum_priorities < 1) {
+        sum_priorities = 1;
+    }
+    return dc / sum_priorities;
 }
 
 void app_tick(void)
@@ -115,11 +165,12 @@ void app_fast_tick(void)
     if(controller_update) {
         char dbgbuf[20];
         uint8_t target_dc = controller_dc;
-        if(boiler_temperature > 75000)
+        if(boiler_temperature > max_boiler_temperature)
         {
             target_dc = 0;
         }
-        chsnprintf(dbgbuf, 20, "dc %3d T %5d", controller_dc, boiler_temperature);
+        target_dc = transform_dc(target_dc);
+        chsnprintf(dbgbuf, 20, "dc %3d T %5d", target_dc, boiler_temperature);
         node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
         dimmer_set_dc(target_dc);
         send_status_message(target_dc);
@@ -212,4 +263,33 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
         //regulate(current_power, transfer->timestamp);
     }
 
+}
+
+static uint8_t get_other_boiler_entry(uint8_t node_id)
+{
+    uint8_t id;
+    for(id = 0; id < MAX_OTHER_BOILER_NODES; ++id) {
+        /* find first matching or unused entry. Entries are always filled up from beginning and _never_ removed */
+        if(other_boiler_status[id].node_id == node_id || other_boiler_status[id].node_id == 0) {
+            other_boiler_status[id].node_id = node_id;
+            return id;
+        }
+    }
+    /* todo: if no entry is found, overwrite the oldest one. We for now overwrite the first one. The tick method currently invalidates old entries as well */
+    other_boiler_status[0].node_id = node_id;
+    node_debug(LOG_LEVEL_ERROR, "BOIL", "No free boiler entry");
+    return 0;
+}
+
+void on_boilerstatus_data(CanardInstance *ins, CanardRxTransfer* transfer)
+{
+    homeautomation_BoilerStatus status;
+    OtherBoilerStatus *storedStatus;
+    homeautomation_BoilerStatus_decode(transfer, 0, &status, NULL);
+
+    storedStatus = &other_boiler_status[get_other_boiler_entry(transfer->source_node_id)];
+    storedStatus->dc = status.duty_cycle;
+    storedStatus->temperature = status.temperature;
+    storedStatus->last_update = transfer->timestamp;
+    storedStatus->priority = status.priority;
 }
