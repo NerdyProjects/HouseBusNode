@@ -127,25 +127,7 @@ static void send_status_message(uint8_t dc)
 
 static uint8_t transform_dc(uint8_t dc)
 {
-    uint8_t i;
-    /* offset of 2 so the result is dc when there is no other node and we have a balanced priority. */
-    int8_t sum_priorities = 2;
-    for(i = 0; i < MAX_OTHER_BOILER_NODES; ++i) {
-        if(other_boiler_status[i].node_id) {
-            if(chVTTimeElapsedSinceX(other_boiler_status[i].last_update) < TIME_S2I(OTHER_NODE_TIMEOUT)) {
-                sum_priorities += other_boiler_status[i].priority;
-            } else {
-                other_boiler_status[i].node_id = 0;
-            }
-        }
-    }
-    /* priorities can be integers 0..15. 0 is the "zero/off" priority, 1 the "equally balanced", bigger nummers define a higher priority.
-    when there is two other nodes with balanced priority, each dc needs to be 1/3. If this node has a higher priority, it takes a bigger part here as well. */
-    sum_priorities -= calculate_priority();
-    if(sum_priorities < 1) {
-        sum_priorities = 1;
-    }
-    return dc / sum_priorities;
+    return dc;
 }
 
 void app_tick(void)
@@ -183,10 +165,29 @@ void app_config_update(void)
     reconfigure();
 }
 
+static int32_t get_target_power(void)
+{
+    uint8_t i;
+    /* offset of 2 so the result is dc when there is no other node and we have a balanced priority. */
+    for(i = 0; i < MAX_OTHER_BOILER_NODES; ++i) {
+        if(other_boiler_status[i].node_id) {
+            if(chVTTimeElapsedSinceX(other_boiler_status[i].last_update) < TIME_S2I(OTHER_NODE_TIMEOUT)) {
+                if(other_boiler_status[i].priority && other_boiler_status[i].temperature < boiler_temperature) {
+                    /* there is another boiler that has lower temperature than us -> give it more power by regulating towards a lower power goal */
+                    return 0;
+                }
+            } else {
+                other_boiler_status[i].node_id = 0;
+            }
+        }
+    }
+    return target_power;
+}
+
 static void regulate(int32_t current_power, uint32_t timestamp)
 {
     char dbgbuf[20];
-    int32_t e = target_power - current_power;
+    int32_t e = get_target_power() - current_power;
     int32_t result = pid_tick(&pid_config, e, timestamp);
     chsnprintf(dbgbuf, 20, "e %d", e);
     node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
