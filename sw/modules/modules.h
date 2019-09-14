@@ -11,7 +11,8 @@
 #include "brightness_data.h"
 #include "temperature_receiver.h"
 #include "obis.h"
-#include "boiler.h"
+// TODO(matthias): commit boiler.h
+// #include "boiler.h"
 
 
 #endif /* MODULES_MODULES_H_ */
