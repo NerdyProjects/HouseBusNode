@@ -60,7 +60,6 @@ static volatile OtherBoilerStatus other_boiler_status[MAX_OTHER_BOILER_NODES];
 
 static void reconfigure(void)
 {
-    char dbgbuf[20];
     max_boiler_temperature = config_get_int(CONFIG_BOILER_MAX_TEMPERATURE);
     float kp = config_get_float(CONFIG_BOILER_PID_KP);
     float kd = config_get_float(CONFIG_BOILER_PID_KD);
@@ -72,10 +71,6 @@ static void reconfigure(void)
         ki
         );
     target_power = config_get_int(CONFIG_BOILER_TARGET_POWER);
-    chsnprintf(dbgbuf, 20, "kp %d kd %d", qfp_float2int(qfp_fmul(kp, 1000)), qfp_float2int(qfp_fmul(kd, 1000)));
-    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
-    chsnprintf(dbgbuf, 20, "ki %d tgt %d", qfp_float2int(qfp_fmul(ki, 1000)), target_power);
-    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
     dimmer_read_config();
 }
 
@@ -145,15 +140,12 @@ void app_tick(void)
 void app_fast_tick(void)
 {
     if(controller_update) {
-        char dbgbuf[20];
         uint8_t target_dc = controller_dc;
         if(boiler_temperature > max_boiler_temperature)
         {
             target_dc = 0;
         }
         target_dc = transform_dc(target_dc);
-        chsnprintf(dbgbuf, 20, "dc %3d T %5d", target_dc, boiler_temperature);
-        node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
         dimmer_set_dc(target_dc);
         send_status_message(target_dc);
         controller_update = 0;
@@ -186,13 +178,8 @@ static int32_t get_target_power(void)
 
 static void regulate(int32_t current_power, uint32_t timestamp)
 {
-    char dbgbuf[20];
     int32_t e = get_target_power() - current_power;
     int32_t result = pid_tick(&pid_config, e, timestamp);
-    chsnprintf(dbgbuf, 20, "e %d", e);
-    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
-    chsnprintf(dbgbuf, 20, "PID %d", result);
-    node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
     if(result < 0) {
         controller_dc = 0;
     } else if(result > 100)
@@ -213,7 +200,6 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
     static uint32_t last_280meter_reading_ts;
     static int32_t last180reading;
     static uint8_t fresh180reading;
-    char dbgbuf[20];
     homeautomation_Obis message;
     homeautomation_Obis_decode(transfer, 0, &message, NULL);
     if(message.code[0] == 1 && message.code[1] == 8 && message.code[2] == 0) {
@@ -222,8 +208,6 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
             int64_t difference = (message.value - last_180meter_reading);
             uint32_t time_difference = TIME_I2MS(transfer->timestamp - last_180meter_reading_ts);
             int32_t p_180 = qfp_float2int(qfp_fmul(qfp_fdiv(qfp_int2float(difference), time_difference), 360000));
-            chsnprintf(dbgbuf, 20, "d1.8.0 %d", p_180);
-            node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
             fresh180reading = 1;
             last180reading = p_180;
         }
@@ -236,8 +220,6 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
             int64_t difference = (message.value - last_280meter_reading);
             uint32_t time_difference = TIME_I2MS(transfer->timestamp - last_280meter_reading_ts);
             int32_t p_280 = qfp_float2int(qfp_fmul(qfp_fdiv(qfp_int2float(difference), time_difference), 360000));
-            chsnprintf(dbgbuf, 20, "d2.8.0 %d", p_280);
-            node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
             if(fresh180reading) {
                 regulate(last180reading - p_280, transfer->timestamp);
                 fresh180reading = 0;
@@ -259,9 +241,6 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
         } else {
             current_power = message.value;
         }
-        chsnprintf(dbgbuf, 20, "16.7.0 %d", current_power);
-        node_debug(LOG_LEVEL_DEBUG, "BOIL", dbgbuf);
-        //regulate(current_power, transfer->timestamp);
     }
 
 }
