@@ -1,0 +1,1 @@
+void on_boilerstatus_data(CanardInstance *ins, CanardRxTransfer* transfer);
