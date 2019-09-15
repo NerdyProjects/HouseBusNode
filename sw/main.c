@@ -25,6 +25,7 @@
 #include "eventcount.h"
 #include "util.h"
 #include "nodes/node.h"
+#include "bootloader_interface.h"
 #ifdef BOOTLOADER
 #include "bootloader.h"
 #endif
@@ -47,6 +48,8 @@ int main(void)
    *   RTOS is active.
    */
 
+  /* Invalidate any bootloader command on application start */
+  bootloader_interface.magic = 0;
   halInit();
   chSysInit();
   wdgInit();
