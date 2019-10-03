@@ -22,6 +22,7 @@
 #include "dsdl/homeautomation/Obis.h"
 #include "dsdl/homeautomation/BoilerStatus.h"
 #include "modules/pid.h"
+#include "modules/bme280.h"
 #include "config.h"
 #include "chprintf.h"
 #include "dimmer.h"
@@ -76,6 +77,7 @@ static void reconfigure(void)
 
 void app_init(void)
 {
+    bme280_app_init();
     palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_ANALOG); /* PA0: Temperature sensor */
     reconfigure();
 }
@@ -127,7 +129,7 @@ static uint8_t transform_dc(uint8_t dc)
 
 void app_tick(void)
 {
-    
+    bme280_app_read();
     boiler_temperature = calculate_thermistor_temperature(adc_smp_filtered[0]);
     /* turn off boiler when there is no obis message received */
     if(chVTTimeElapsedSinceX(controller_last_update) > TIME_S2I(CONTROLLER_TIMEOUT)) {
