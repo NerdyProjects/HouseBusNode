@@ -184,21 +184,21 @@ void app_fast_tick(void)
   if(brightness < 2)
   {
     // it's dark, turn light always on
-    if(hour <= 21)
+    if(hour >= 6 && hour <= 22)
     {
       // evening mode
       next_hallway_brightness = 500;
       hallway_motion_sensor_brightness = 20000;
       pwm_set_dc(STAIRCASE_K20_1, 4000);
-      pwm_set_dc(STAIRCASE_K20_2, 1500);
+      pwm_set_dc(STAIRCASE_K20_2, 2000);
     }
     else
     {
       // night mode
-      next_hallway_brightness = 40;
-      hallway_motion_sensor_brightness = 1500;
-      pwm_set_dc(STAIRCASE_K20_1, 300);
-      pwm_set_dc(STAIRCASE_K20_2, 100);
+      next_hallway_brightness = 70;
+      hallway_motion_sensor_brightness = 2500;
+      pwm_set_dc(STAIRCASE_K20_1, 500);
+      pwm_set_dc(STAIRCASE_K20_2, 300);
     }
   }
   else if (brightness < 5) {
