@@ -50,18 +50,56 @@ static int32_t target_power = 100;
 static volatile pid_control_t pid_config;
 
 static volatile uint8_t controller_dc;
+static uint8_t boiler_dc;
 static volatile uint8_t controller_update;
 static volatile uint32_t controller_last_update;
 static volatile int32_t max_boiler_temperature;
+static volatile int32_t min_boiler_temperature;
 
 /* temperature in centidegrees: 2500 is 25.00 degrees celsius */
 static volatile int32_t boiler_temperature;
 
 static volatile OtherBoilerStatus other_boiler_status[MAX_OTHER_BOILER_NODES];
 
+static uint8_t calculate_priority(void)
+{
+    if(boiler_temperature > max_boiler_temperature) {
+        return 0;
+    }
+    return 1;
+}
+
+static void send_status_message(uint8_t dc)
+{
+    uint8_t transferStatus;
+    uint8_t buf[HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE];
+    homeautomation_BoilerStatus status;
+    status.duty_cycle = dc;
+    status.temperature = boiler_temperature;
+    status.priority =  calculate_priority();
+    homeautomation_BoilerStatus_encode(&status, buf);
+    canardLockBroadcast(&canard,
+    HOMEAUTOMATION_BOILERSTATUS_SIGNATURE,
+    HOMEAUTOMATION_BOILERSTATUS_ID,
+    &transferStatus,
+    CANARD_TRANSFER_PRIORITY_LOW,
+    buf,
+    HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE
+    );
+}
+
+
+static void set_dc(uint8_t dc)
+{
+    boiler_dc = dc;
+    dimmer_set_dc(dc);
+    send_status_message(dc);
+}
+
 static void reconfigure(void)
 {
     max_boiler_temperature = config_get_int(CONFIG_BOILER_MAX_TEMPERATURE);
+    min_boiler_temperature = config_get_int(CONFIG_BOILER_MIN_TEMPERATURE);
     float kp = config_get_float(CONFIG_BOILER_PID_KP);
     float kd = config_get_float(CONFIG_BOILER_PID_KD);
     float ki = config_get_float(CONFIG_BOILER_PID_KI);
@@ -95,33 +133,6 @@ static int32_t calculate_thermistor_temperature(uint16_t adc)
     return qfp_float2int(qfp_fmul(t, 100));
 }
 
-static uint8_t calculate_priority(void)
-{
-    if(boiler_temperature > max_boiler_temperature) {
-        return 0;
-    }
-    return 1;
-}
-
-static void send_status_message(uint8_t dc)
-{
-    uint8_t transferStatus;
-    uint8_t buf[HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE];
-    homeautomation_BoilerStatus status;
-    status.duty_cycle = dc;
-    status.temperature = boiler_temperature;
-    status.priority =  calculate_priority();
-    homeautomation_BoilerStatus_encode(&status, buf);
-    canardLockBroadcast(&canard,
-    HOMEAUTOMATION_BOILERSTATUS_SIGNATURE,
-    HOMEAUTOMATION_BOILERSTATUS_ID,
-    &transferStatus,
-    CANARD_TRANSFER_PRIORITY_LOW,
-    buf,
-    HOMEAUTOMATION_BOILERSTATUS_MAX_SIZE
-    );
-}
-
 static uint8_t transform_dc(uint8_t dc)
 {
     return dc;
@@ -134,8 +145,7 @@ void app_tick(void)
     /* turn off boiler when there is no obis message received */
     if(chVTTimeElapsedSinceX(controller_last_update) > TIME_S2I(CONTROLLER_TIMEOUT)) {
         node_debug(LOG_LEVEL_ERROR, "BOIL", "STOP boiler no meter reading");
-        dimmer_set_dc(0);
-        send_status_message(0);
+        set_dc(0);
     }
 }
 
@@ -143,13 +153,17 @@ void app_fast_tick(void)
 {
     if(controller_update) {
         uint8_t target_dc = controller_dc;
+        if((boiler_temperature < min_boiler_temperature) ||
+           (boiler_dc == 100 && boiler_temperature < (min_boiler_temperature + 300)))
+        {
+            target_dc = 100;
+        }
         if(boiler_temperature > max_boiler_temperature)
         {
             target_dc = 0;
         }
         target_dc = transform_dc(target_dc);
-        dimmer_set_dc(target_dc);
-        send_status_message(target_dc);
+        set_dc(target_dc);
         controller_update = 0;
     }
 }
