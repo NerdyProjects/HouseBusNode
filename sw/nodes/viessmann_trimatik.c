@@ -102,6 +102,12 @@ static uint16_t burnerMinOffTime;
  */
 static uint16_t circulationMinOnTimeForThreshold;
 
+/*
+ * deviation is calculated as the integral of deviation of flow to real temp. It is used to control an averaged flow temperature.
+ * heater turns on, when deviation is less than -hysteresis.
+ */
+static int32_t deviationHysteresis;
+
 /* Temp 1 is active from time1Start to time1Stop. Otherwise, Temp 2 is active.
  * Temp is seen as the "Normal" temperature, the offset from the switch selection is added.
  * Times are encoded with minutes in the least significant byte and hours in the next more significant byte.:
@@ -444,6 +450,7 @@ static void read_config(void)
   time1Stop = config_get_uint(CONFIG_HEATER_TIME_1_STOP);
   time1Temp = config_get_int(CONFIG_HEATER_TIME_1_TEMP);
   time2Temp = config_get_int(CONFIG_HEATER_TIME_2_TEMP);
+  deviationHysteresis = config_get_int(CONFIG_HEATER_DEVIATION_HYSTERESIS);
 }
 
 static uint8_t inTimeRange(uint16_t start, uint16_t stop)
@@ -487,6 +494,8 @@ void app_tick(void)
   static systime_t lastBurnerStop = 0x8FF00;    /* Future initialization so we don't start in burner stop phase */
   static systime_t lastCirculationStart;
   static int16_t extendThisCycleFlowTemp;
+  /* total deviation (integral) from target flow temperature in kelvin multiplied by seconds (given by tick interval) */
+  static int32_t flowTempDeviation;
   uint8_t nextBurnerState = 0;
   uint8_t nextCirculationState = 0;
   int16_t burnerLidFor = (currentBurnerState ? TIME_I2S(chVTTimeElapsedSinceX(lastBurnerRequestStart)) : 0) - BURNER_REQUEST_DELAY;
@@ -504,7 +513,15 @@ void app_tick(void)
     nextCirculationState = key[KEY_SLOPE] & 2;
   } else if(key[KEY_MODE] == KEY_MODE_DAY_NIGHT)
   {
-    if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
+    node_debug_int(LOG_LEVEL_INFO, "FLOWTARGET", targetFlowTemp);
+    node_debug_int(LOG_LEVEL_INFO, "FLOWTEMP", flowTemp);
+    node_debug_int(LOG_LEVEL_INFO, "FLOWDEVIATION", flowTempDeviation);
+    flowTempDeviation += flowTemp - targetFlowTemp;
+    
+    if((currentCirculationState && flowTemp > (minTempToEnableCirculation - 100)) ||
+      (flowTemp > minTempToEnableCirculation) ||
+      (burnerTemp > minTempToEnableCirculation)
+      )
     {
       nextCirculationState = 1;
     }
@@ -513,8 +530,13 @@ void app_tick(void)
       nextBurnerState = currentBurnerState;
       if(!currentBurnerState)
       {
-        if(flowTemp < (targetFlowTemp - flowHysteresisTurnOn))
+        /* flow temp controlled */
+        if(!deviationHysteresis && (flowTemp < (targetFlowTemp - flowHysteresisTurnOn)))
         {
+          nextBurnerState = 1;
+        }
+        /* flow temp deviation controlled */
+        if(deviationHysteresis && (flowTempDeviation < (0 - deviationHysteresis))) {
           nextBurnerState = 1;
         }
       }
@@ -527,14 +549,22 @@ void app_tick(void)
         {
           nextBurnerState = 0;
         }
+        if(deviationHysteresis && (flowTempDeviation > deviationHysteresis)) {
+          /* additionally, turn off when deviation reached positive turn off point */
+          nextBurnerState = 0;
+        }
         if(burnerTemp > flowTemp && burnerLidFor > burnerStopTempRiseTime && circulationRunningFor > circulationMinOnTimeForThreshold)
         {
           nextBurnerState = 0;
         }
       }
+    } else {
+      /* reset deviation because we don't try to heat */
+      flowTempDeviation = 0;
     }
   } else if(key[KEY_MODE] == KEY_MODE_DAY_OFF)
   { /* this mode is temporarily used to "shut down" in the night */
+    flowTempDeviation = 0;
     if(flowTemp > minTempToEnableCirculation || burnerTemp > minTempToEnableCirculation)
     { /* Let circulation run until heating system cooled down */
       nextCirculationState = 1;
@@ -552,6 +582,9 @@ void app_tick(void)
       /* Detection of burner request */
       lastBurnerRequestStart = chVTGetSystemTimeX();
       extendThisCycleFlowTemp = targetFlowTemp - flowTemp;
+      if(extendThisCycleFlowTemp > (2 * flowHysteresisTurnOff)) {
+        extendThisCycleFlowTemp = 2 * flowHysteresisTurnOff;
+      }      
     }
   }
   if(nextCirculationState && !currentCirculationState) {

@@ -7,6 +7,7 @@
 
 #include <hal.h>
 #include "ch.h"
+#include "chprintf.h"
 #include <canard.h>
 #include <string.h>
 #include "uavcan.h"
@@ -667,6 +668,12 @@ void node_debug(uint8_t loglevel, const char *source, const char *msg)
   chMtxUnlock(&canardMtx);
 }
 
+void node_debug_int(uint8_t loglevel, const char *source, int32_t number)
+{
+  char dbgbuf[12];
+  chsnprintf(dbgbuf, 12, "%d", number);
+  node_debug(loglevel, source, dbgbuf);
+}
 
 void node_init(void)
 {

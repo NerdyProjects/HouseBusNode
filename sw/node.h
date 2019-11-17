@@ -27,6 +27,7 @@ typedef enum UAVCAN_LOG_LEVEL
 } UavcanLogLevel;
 
 void node_debug(uint8_t loglevel, const char *source, const char *msg);
+void node_debug_int(uint8_t loglevel, const char *source, int32_t number);
 int canardLockBroadcast(CanardInstance* ins,            ///< Library instance
                     uint64_t data_type_signature,   ///< See above
                     uint16_t data_type_id,          ///< Refer to the specification
