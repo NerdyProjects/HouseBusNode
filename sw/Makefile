@@ -167,7 +167,10 @@ CSRC += nodes/boiler.c \
         dsdl/homeautomation/homeautomation_Obis.c \
         dsdl/homeautomation/homeautomation_BoilerStatus.c
 endif
-
+ifeq ($(NODE),rfiddoor)
+CSRC += nodes/rfiddoor.c \
+        drivers/mfrc522.c
+endif
 
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
