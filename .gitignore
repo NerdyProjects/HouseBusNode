@@ -5,3 +5,16 @@ sw/.dep
 sw/dsdlc_generated
 sw/extern
 sw/dsdlc_generated
+.settings
+hub/*-bak
+hub/fp-info-cache
+hub/out
+hub/hub-cache.lib
+mini-pcb/*-bak
+mini-pcb/*.bak
+mini-pcb/fp-info-cache
+mini-pcb/out
+mini-pcb/rescue-backup
+pcb/fp-info-cache
+pcb/out2
+pcb/rescue-backup
