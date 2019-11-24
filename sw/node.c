@@ -615,7 +615,7 @@ static THD_FUNCTION(FastTasksThread, arg)
   chRegSetThreadName("FastTasks");
   while(node_getMode() != UAVCAN_NODE_MODE_OPERATIONAL)
   {
-    chThdSleepS(5);
+    chThdSleep(TIME_S2I(1));
   }
   systime_t nextInvocation = chVTGetSystemTimeX();
   while(node_getMode() == UAVCAN_NODE_MODE_OPERATIONAL)
