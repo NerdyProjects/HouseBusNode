@@ -35,7 +35,6 @@ void TM_MFRC522_Init(void) {
 
 	TM_MFRC522_Reset();
 	chThdSleepMilliseconds(50);
-	node_debug(LOG_LEVEL_DEBUG, "MFRC522", "Config...");
 
 	TM_MFRC522_WriteRegister(MFRC522_REG_T_MODE, 0x8D);
 	TM_MFRC522_WriteRegister(MFRC522_REG_T_PRESCALER, 0x3E);
@@ -47,7 +46,6 @@ void TM_MFRC522_Init(void) {
 	
 	TM_MFRC522_WriteRegister(MFRC522_REG_TX_AUTO, 0x40);
 	TM_MFRC522_WriteRegister(MFRC522_REG_MODE, 0x3D);
-	node_debug(LOG_LEVEL_DEBUG, "MFRC522", "Start...");
 	TM_MFRC522_AntennaOn();		//Open the antenna
 }
 

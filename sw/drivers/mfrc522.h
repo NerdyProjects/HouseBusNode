@@ -80,8 +80,8 @@ typedef enum {
 
 #define MFRC522_SPI &SPID2
 
-#define MFRC522_CS_LOW					palClearPad(GPIOA, 8);
-#define MFRC522_CS_HIGH					palSetPad(GPIOA, 8);
+#define MFRC522_CS_LOW					palClearPad(GPIOB, 12);
+#define MFRC522_CS_HIGH					palSetPad(GPIOB, 12);
 
 /* MFRC522 Commands */
 #define PCD_IDLE						0x00   //NO action; Cancel the current command
