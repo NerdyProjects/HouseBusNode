@@ -144,6 +144,11 @@ CSRC += nodes/hallway_light.c \
         modules/brightness_data.c \
         dsdl/homeautomation/homeautomation_BathroomStatus.c
 endif
+ifeq ($(NODE),K22_LIGHT)
+CSRC += nodes/k22_light.c \
+        modules/brightness_data.c \
+        dsdl/homeautomation/homeautomation_BathroomStatus.c
+endif
 ifeq ($(NODE),SML)
 CSRC += nodes/sml.c
 endif
