@@ -247,18 +247,6 @@ void on_obis_data(CanardInstance* ins, CanardRxTransfer* transfer)
         last_280meter_reading = message.value;
         last_280meter_reading_ts = transfer->timestamp;
     }
-    if(message.code[0] == 16 && message.code[1] == 7) {
-        /* instantaneous power sum */
-        int32_t current_power;
-        if (message.value > 10000) {
-            current_power = 10000;
-        } else if (message.value < -2000) {
-            current_power = -2000;
-        } else {
-            current_power = message.value;
-        }
-    }
-
 }
 
 static uint8_t get_other_boiler_entry(uint8_t node_id)
