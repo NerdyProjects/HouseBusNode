@@ -55,6 +55,7 @@ static volatile uint8_t controller_update;
 static volatile uint32_t controller_last_update;
 static volatile int32_t max_boiler_temperature;
 static volatile int32_t min_boiler_temperature;
+static volatile int32_t target_boiler_temperature;
 
 /* temperature in centidegrees: 2500 is 25.00 degrees celsius */
 static volatile int32_t boiler_temperature;
@@ -65,6 +66,9 @@ static uint8_t calculate_priority(void)
 {
     if(boiler_temperature > max_boiler_temperature) {
         return 0;
+    }
+    if(boiler_temperature < target_boiler_temperature) {
+        return 2;
     }
     return 1;
 }
@@ -100,6 +104,7 @@ static void reconfigure(void)
 {
     max_boiler_temperature = config_get_int(CONFIG_BOILER_MAX_TEMPERATURE);
     min_boiler_temperature = config_get_int(CONFIG_BOILER_MIN_TEMPERATURE);
+    target_boiler_temperature = config_get_int(CONFIG_BOILER_TARGET_TEMPERATURE);
     float kp = config_get_float(CONFIG_BOILER_PID_KP);
     float kd = config_get_float(CONFIG_BOILER_PID_KD);
     float ki = config_get_float(CONFIG_BOILER_PID_KI);
@@ -176,12 +181,13 @@ void app_config_update(void)
 static int32_t get_target_power(void)
 {
     uint8_t i;
+    uint8_t our_priority = calculate_priority();
     /* offset of 2 so the result is dc when there is no other node and we have a balanced priority. */
     for(i = 0; i < MAX_OTHER_BOILER_NODES; ++i) {
         if(other_boiler_status[i].node_id) {
             if(chVTTimeElapsedSinceX(other_boiler_status[i].last_update) < TIME_S2I(OTHER_NODE_TIMEOUT)) {
-                if(other_boiler_status[i].priority && other_boiler_status[i].temperature < boiler_temperature) {
-                    /* there is another boiler that has lower temperature than us -> give it more power by regulating towards a lower power goal */
+                if(other_boiler_status[i].priority > our_priority) {
+                    /* there is another boiler that has higher priority -> give it more power by regulating towards a lower power goal */
                     return 0;
                 }
             } else {
