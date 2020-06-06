@@ -142,7 +142,8 @@ ifeq ($(NODE),HALLWAY_LIGHT)
 CSRC += nodes/hallway_light.c \
 				modules/time_data.c \
         modules/brightness_data.c \
-        dsdl/homeautomation/homeautomation_BathroomStatus.c
+        dsdl/homeautomation/homeautomation_BathroomStatus.c \
+        dsdl/homeautomation/homeautomation_Motion.c
 endif
 ifeq ($(NODE),K22_LIGHT)
 CSRC += nodes/k22_light.c \

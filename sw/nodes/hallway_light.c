@@ -5,6 +5,7 @@
 #include "modules/time_data.h"
 #include "modules/brightness_data.h"
 #include "../drivers/analog.h" // for random data
+#include "dsdl/homeautomation/Motion.h"
 
 /* Hallway light beginning from door .. backyard */
 #define HALLWAY_START 1
@@ -23,8 +24,6 @@
 #define ANIMATION_FADE 1
 #define ANIMATION_PLAY 2
 
-static volatile uint32_t hallway_motion_sensor_trigger = 0;
-
 typedef struct {
   int animation;
   int from;
@@ -34,9 +33,11 @@ typedef struct {
   int lights_index[HALLWAY_LIGHTS];
 } animation_state_t;
 
+static volatile systime_t hallway_motion_sensor_trigger_time;
+
 static void hallway_motion_sensor_callback(void* arg)
 {
-  hallway_motion_sensor_trigger = 1;
+  hallway_motion_sensor_trigger_time = chVTGetSystemTime();
 }
 
 static int get_fade_val(int step, int fade_from, int fade_to, int length)
@@ -173,7 +174,6 @@ void app_fast_tick(void)
   static int hallway_motion_sensor_brightness = 20000;
   static int hallway_animation = ANIMATION_NONE;
   static animation_state_t animation;
-  static systime_t hallway_motion_sensor_on_time;
 
   int next_hallway_brightness = 0;
 
@@ -216,15 +216,8 @@ void app_fast_tick(void)
     pwm_set_dc(STAIRCASE_K20_2, 0);
   }
 
-  // check if motion sensor was triggered
-  if(hallway_motion_sensor_trigger)
-  {
-    hallway_motion_sensor_trigger = 0;
-    hallway_motion_sensor_on_time = chVTGetSystemTime();
-  }
-
   // override target brightness if motion sensor is on
-  if (hallway_motion_sensor_on_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) > chVTGetSystemTime())
+  if (hallway_motion_sensor_trigger_time + TIME_S2I(HALLWAY_MOTION_SENSOR_MAX_SECONDS) > chVTGetSystemTime())
   {
     next_hallway_brightness = hallway_motion_sensor_brightness;
   }
@@ -275,8 +268,30 @@ void app_fast_tick(void)
   }
 }
 
+static void send_motion_message()
+{
+    uint8_t transferStatus;
+    uint8_t buf[HOMEAUTOMATION_MOTION_MAX_SIZE];
+    homeautomation_Motion status;
+    status.triggered = 1;
+    homeautomation_Motion_encode(&status, buf);
+    canardLockBroadcast(&canard,
+      HOMEAUTOMATION_MOTION_SIGNATURE,
+      HOMEAUTOMATION_MOTION_ID,
+      &transferStatus,
+      CANARD_TRANSFER_PRIORITY_LOW,
+      buf,
+      HOMEAUTOMATION_MOTION_MAX_SIZE
+    );
+}
+
 void app_tick(void)
 {
+  static systime_t last_trigger_time;
+  if (hallway_motion_sensor_trigger_time > last_trigger_time) {
+    send_motion_message();
+    last_trigger_time = hallway_motion_sensor_trigger_time;
+  }
 }
 
 void app_on_transfer_received(CanardInstance* ins, CanardRxTransfer* transfer)
