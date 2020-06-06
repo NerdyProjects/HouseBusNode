@@ -37,8 +37,9 @@ uint32_t homeautomation_Motion_encode_internal(homeautomation_Motion* source,
   uint32_t offset,
   uint8_t CANARD_MAYBE_UNUSED(root_item))
 {
-    canardEncodeScalar(msg_buf, offset, 8, (void*)&source->triggered); // 255
-    offset += 8;
+    source->triggered = CANARD_INTERNAL_SATURATE_UNSIGNED(source->triggered, 1)
+    canardEncodeScalar(msg_buf, offset, 1, (void*)&source->triggered); // 1
+    offset += 1;
 
     return offset;
 }
@@ -80,12 +81,12 @@ int32_t homeautomation_Motion_decode_internal(
 {
     int32_t ret = 0;
 
-    ret = canardDecodeScalar(transfer, offset, 8, false, (void*)&dest->triggered);
-    if (ret != 8)
+    ret = canardDecodeScalar(transfer, offset, 1, false, (void*)&dest->triggered);
+    if (ret != 1)
     {
         goto homeautomation_Motion_error_exit;
     }
-    offset += 8;
+    offset += 1;
     return offset;
 
 homeautomation_Motion_error_exit:

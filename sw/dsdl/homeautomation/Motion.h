@@ -17,26 +17,26 @@ extern "C"
 #endif
 
 /******************************* Source text **********************************
-uint8 triggered
+bool triggered
 ******************************************************************************/
 
 /********************* DSDL signature source definition ***********************
 homeautomation.Motion
-saturated uint8 triggered
+saturated bool triggered
 ******************************************************************************/
 
 #define HOMEAUTOMATION_MOTION_ID                           20011
 #define HOMEAUTOMATION_MOTION_NAME                         "homeautomation.Motion"
-#define HOMEAUTOMATION_MOTION_SIGNATURE                    (0x27E5F95F100138E3ULL)
+#define HOMEAUTOMATION_MOTION_SIGNATURE                    (0x8177FC2EE54926E8ULL)
 
-#define HOMEAUTOMATION_MOTION_MAX_SIZE                     ((8 + 7)/8)
+#define HOMEAUTOMATION_MOTION_MAX_SIZE                     ((1 + 7)/8)
 
 // Constants
 
 typedef struct
 {
     // FieldTypes
-    uint8_t    triggered;                     // bit len 8
+    bool       triggered;                     // bit len 1
 
 } homeautomation_Motion;
 

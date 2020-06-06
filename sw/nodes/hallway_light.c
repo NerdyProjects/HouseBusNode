@@ -270,7 +270,7 @@ void app_fast_tick(void)
 
 static void send_motion_message()
 {
-    uint8_t transferStatus;
+    static uint8_t transfer_id = 0;
     uint8_t buf[HOMEAUTOMATION_MOTION_MAX_SIZE];
     homeautomation_Motion status;
     status.triggered = 1;
@@ -278,16 +278,22 @@ static void send_motion_message()
     canardLockBroadcast(&canard,
       HOMEAUTOMATION_MOTION_SIGNATURE,
       HOMEAUTOMATION_MOTION_ID,
-      &transferStatus,
+      &transfer_id,
       CANARD_TRANSFER_PRIORITY_LOW,
       buf,
       HOMEAUTOMATION_MOTION_MAX_SIZE
     );
+    node_debug(LOG_LEVEL_DEBUG, "send success", NULL);
 }
 
 void app_tick(void)
 {
-  static systime_t last_trigger_time;
+  static systime_t last_trigger_time = 0;
+  if (last_trigger_time == 0) {
+    // init
+    last_trigger_time = chVTGetSystemTime();
+  }
+
   if (hallway_motion_sensor_trigger_time > last_trigger_time) {
     send_motion_message();
     last_trigger_time = hallway_motion_sensor_trigger_time;
