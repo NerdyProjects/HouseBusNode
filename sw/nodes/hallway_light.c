@@ -283,7 +283,6 @@ static void send_motion_message()
       buf,
       HOMEAUTOMATION_MOTION_MAX_SIZE
     );
-    node_debug(LOG_LEVEL_DEBUG, "send success", NULL);
 }
 
 void app_tick(void)
