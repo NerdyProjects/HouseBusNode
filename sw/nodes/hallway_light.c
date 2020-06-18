@@ -18,7 +18,7 @@
 /* GPIOB 4 is motion sensor input, active high */
 #define HALLWAY_MOTION_SENSOR_PORT GPIOB
 #define HALLWAY_MOTION_SENSOR_PAD 4
-#define HALLWAY_MOTION_SENSOR_MAX_SECONDS 30
+#define HALLWAY_MOTION_SENSOR_MAX_SECONDS 45
 
 #define ANIMATION_NONE 0
 #define ANIMATION_FADE 1
@@ -34,11 +34,6 @@ typedef struct {
 } animation_state_t;
 
 static volatile systime_t hallway_motion_sensor_trigger_time;
-
-static void hallway_motion_sensor_callback(void* arg)
-{
-  hallway_motion_sensor_trigger_time = chVTGetSystemTime();
-}
 
 static int get_fade_val(int step, int fade_from, int fade_to, int length)
 {
@@ -160,12 +155,7 @@ void app_init(void)
   pwm_set_dc(STAIRCASE_K20_1, 0.1*65000);
   pwm_set_dc(STAIRCASE_K20_2, 0.1*65000);
 
-  palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT);
-
-  chSysLock();
-  palEnablePadEventI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_EVENT_MODE_RISING_EDGE);
-  palSetPadCallbackI(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, hallway_motion_sensor_callback, NULL);
-  chSysUnlock();
+  palSetPadMode(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD, PAL_MODE_INPUT_PULLDOWN);
 }
 
 void app_fast_tick(void)
@@ -210,10 +200,15 @@ void app_fast_tick(void)
   }
   else {
     // day mode
-    hallway_motion_sensor_brightness = 0;
     next_hallway_brightness = 0;
+    hallway_motion_sensor_brightness = 0;
     pwm_set_dc(STAIRCASE_K20_1, 0);
     pwm_set_dc(STAIRCASE_K20_2, 0);
+  }
+
+  // read motion sensor
+  if (palReadPad(HALLWAY_MOTION_SENSOR_PORT, HALLWAY_MOTION_SENSOR_PAD)) {
+    hallway_motion_sensor_trigger_time = chVTGetSystemTime();
   }
 
   // override target brightness if motion sensor is on
