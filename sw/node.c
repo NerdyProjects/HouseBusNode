@@ -31,6 +31,7 @@ systime_t NodeRestartAt;
 
 static uint8_t node_health = UAVCAN_NODE_HEALTH_OK;
 static uint8_t node_mode = UAVCAN_NODE_MODE_INITIALIZATION;
+static uint32_t systime_extension_s;
 
 /* ChibiOs wrappers around canard to be able to have indepentent RX/TX Threads */
 MUTEX_DECL(canardMtx);
@@ -115,7 +116,7 @@ static void makeNodeStatusMessage(
     uint8_t buffer[UAVCAN_NODE_STATUS_MESSAGE_SIZE])
 {
   memset(buffer, 0, UAVCAN_NODE_STATUS_MESSAGE_SIZE);
-  int uptime_sec = TIME_I2S(chVTGetSystemTimeX());
+  uint32_t uptime_sec = TIME_I2S(chVTGetSystemTimeX()) + systime_extension_s;
   uint16_t vdda = 0;
   vdda= analog_get_vdda();
   if(isNodeRestartRequested())
@@ -437,6 +438,7 @@ static void broadcast_node_status(void) {
  */
 static void process1HzTasks(uint32_t timestamp)
 {
+  static systime_t lastSystime;
   /*
    * Purging transfers that are no longer transmitted. This will occasionally free up some memory.
    */
@@ -466,6 +468,11 @@ static void process1HzTasks(uint32_t timestamp)
       DEBUG("WARN: ENLARGE Canard MEM");
     }
   }
+
+  if(chVTGetSystemTimeX() < lastSystime) {
+    systime_extension_s += ((1ULL<<CH_CFG_ST_RESOLUTION)/CH_CFG_ST_FREQUENCY);
+  }
+  lastSystime = chVTGetSystemTimeX();
 
   /*
    * Transmitting the node status message periodically.
