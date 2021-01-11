@@ -436,6 +436,26 @@ int16_t getTargetFlowTemperature(int16_t targetTemperature)
   return qfp_float2int(qfp_fmul(result, 100));
 }
 
+/* calculates an exponentially weighted difference of the actual and the target flow temperature
+to properly account for higher/lower flow temperatures during firing period. */
+int32_t getWeightedFlowDeviation(int16_t targetTemperature, int16_t targetFlowTemperature, int16_t actualFlowTemperature)
+{
+  if(targetFlowTemperature <= targetTemperature) {
+    return 0;
+  }
+  /* our radiators have an exponential factor of approx. 1.3 */
+  const float radiatorExponent = 1.3f;
+  const float target = qfp_fdiv(qfp_int2float(targetTemperature), 100);
+  const float targetFlow = qfp_fdiv(qfp_int2float(targetFlowTemperature), 100);
+  const float actualFlow = qfp_fdiv(qfp_int2float(actualFlowTemperature), 100);
+  const float targetProportionalPower = qfp_fexp(qfp_fmul(qfp_fln(qfp_fsub(targetFlow, target)), radiatorExponent));
+  if(actualFlowTemperature <= targetTemperature) {
+    return qfp_float2int(qfp_fmul(targetProportionalPower, -100));
+  }
+  const float actualProportionalPower = qfp_fexp(qfp_fmul(qfp_fln(qfp_fsub(actualFlow, target)), radiatorExponent));
+  return qfp_float2int(qfp_fmul(qfp_fsub(actualProportionalPower, targetProportionalPower), 100));
+}
+
 
 static void read_config(void)
 {
@@ -488,6 +508,7 @@ void app_tick(void)
   int16_t targetFlowTemp;
   int16_t flowTemp = getFlowTemperature();
   int16_t burnerTemp = getBurnerTemperature();
+  int16_t targetTemp;
   static uint8_t currentBurnerState;
   static uint8_t currentCirculationState;
   static systime_t lastBurnerRequestStart;
@@ -502,10 +523,11 @@ void app_tick(void)
   int32_t circulationRunningFor = (currentCirculationState ? TIME_I2S(chVTTimeElapsedSinceX(lastCirculationStart)) : 0);
   if(inTimeRange(time1Start, time1Stop))
   {
-    targetFlowTemp = getTargetFlowTemperature(getTargetTemperature(0) + time1Temp);
+    targetTemp = getTargetTemperature(0) + time1Temp;
   } else {
-    targetFlowTemp = getTargetFlowTemperature(getTargetTemperature(1) + time2Temp);
+    targetTemp = getTargetTemperature(1) + time2Temp;
   }
+  targetFlowTemp = getTargetFlowTemperature(targetTemp);
 
   if(key[KEY_MODE] == KEY_MODE_DEBUG)
   {
@@ -516,7 +538,13 @@ void app_tick(void)
     node_debug_int(LOG_LEVEL_INFO, "FLOWTARGET", targetFlowTemp);
     node_debug_int(LOG_LEVEL_INFO, "FLOWTEMP", flowTemp);
     node_debug_int(LOG_LEVEL_INFO, "FLOWDEVIATION", flowTempDeviation);
-    flowTempDeviation += flowTemp - targetFlowTemp;
+    flowTempDeviation += getWeightedFlowDeviation(targetTemp, targetFlowTemp, flowTemp);
+    /* limit deviation integral. Factor 8 chosen arbitrarily */
+    if(flowTempDeviation > 8*deviationHysteresis) {
+      flowTempDeviation = 8*deviationHysteresis;
+    } else if(flowTempDeviation < -8*deviationHysteresis) {
+      flowTempDeviation = -8*deviationHysteresis;
+    }
     
     if((currentCirculationState && flowTemp > (minTempToEnableCirculation - 100)) ||
       (flowTemp > minTempToEnableCirculation) ||
