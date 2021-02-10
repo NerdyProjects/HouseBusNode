@@ -136,7 +136,7 @@ static uint32_t adc_double_filtered[3];
  * 2 (Moon): -9 .. +6 (0 is N)
  * 4 (Water): 0, 32 .. 50 (each step is +2)
  * 1 (Mode): 0 Freeze Freeze, 1 Sun Freeze, 2 Sun Moon, 3 Sun Sun, 4 Moon Moon, 5 Water Freeze, 6..15: 1..10
- * 3 (slope): 0,2 .. 2,6 (each step is +0,2)
+ * 3 (slope): 0,2 .. 2,6 (step size varies)
  * 5 (offset): -12 .. +33 (each step is +3)
  */
 static uint8_t key[6];
@@ -396,7 +396,9 @@ static int16_t getTargetTemperature(uint8_t night)
 
 static float getCurveSlope(void)
 {
-  return qfp_fmul(0.2f, qfp_int2float(key[KEY_SLOPE]));
+  /* nearly fits the original, adds 1.3 to have more resolution in interesting area */
+  static const float slope[] = {0.2f, 0.4f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.6f, 1.9f, 2.2f, 2.4f, 2.6f};
+  return slope[key[KEY_SLOPE] & 0x0F];
 }
 
 static float getCurveOffset(void)
@@ -538,6 +540,8 @@ void app_tick(void)
     node_debug_int(LOG_LEVEL_INFO, "FLOWTARGET", targetFlowTemp);
     node_debug_int(LOG_LEVEL_INFO, "FLOWTEMP", flowTemp);
     node_debug_int(LOG_LEVEL_INFO, "FLOWDEVIATION", flowTempDeviation);
+    node_debug_int(LOG_LEVEL_INFO, "OFFSET", qfp_float2int(getCurveOffset()));
+    node_debug_int(LOG_LEVEL_INFO, "SLOPE", qfp_float2int(qfp_fmul(10.0f, getCurveSlope())));
     flowTempDeviation += getWeightedFlowDeviation(targetTemp, targetFlowTemp, flowTemp);
     /* limit deviation integral. Factor 8 chosen arbitrarily */
     if(flowTempDeviation > 8*deviationHysteresis) {
