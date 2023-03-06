@@ -54,8 +54,8 @@
 
 #define MOTION_TRIGGER_ACTIVE_S 45
 #define MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S 900
-#define MOTION_TRIGGER_BLOCK_AFTER_DOOR_CLOSE_S 4
-#define MOTION_TRIGGER_AFTER_DOOR_CLOSE_NOT_EMPTY_S 10
+#define MOTION_TRIGGER_BLOCK_AFTER_DOOR_CLOSE_S 120
+#define MOTION_TRIGGER_AFTER_DOOR_CLOSE_NOT_EMPTY_S 120
 #define PRIVATE_MODE_BUTTON_VALID_FOR_S 30
 #define PRIVATE_MODE_EMPTY_VALID_FOR_S 7
 
@@ -71,6 +71,7 @@ static volatile uint8_t blinkSpeed;
 static uint8_t blinkState;
 static uint8_t occupancySwitchPressed;
 static uint8_t brightnessSwitchPressed;
+static uint8_t bright = 0;
 
 static uint16_t wallTemperatureFactor;
 static uint32_t fanOnAboveRelativeHumidity;
@@ -188,7 +189,11 @@ static void readLdr(BathroomStatus *status)
   if(chVTTimeElapsedSinceX(lastReadingAt) >= TIME_S2I(LDR_TICK_INTERVAL_S)) {
     /* scale from 65535..0 to 0..255 dark..bright */
     uint8_t v = (~adc_smp_filtered[0]) >> 8;
-    if(status->person_inside) {
+    if(bright) {
+      // it's probably dark when bright light is on
+      v = 0;
+    }
+    else if(status->person_inside) {
       /* possibility of non-natural lighting; just use previous brightness again */
       v = window[windowPointer];
     }
@@ -423,23 +428,18 @@ static void bathroom_status_broadcast(BathroomStatus *status)
 
 static void lightTick(BathroomStatus *status)
 {
-  static uint8_t bright = 0;
   uint8_t targetBrightness = 0;
   if (brightnessSwitchPressed)
   {
-    if(status->person_inside) {
-      /* only accept button press when somebody is in the room */
-      bright = !bright;
-    }
+    bright = !bright;
     brightnessSwitchPressed = 0;
   }
   if(status->person_inside) {
     if(status->brightness == 0) {
       targetBrightness = 1;
     }
-    if(bright && status->brightness <= 3)
+    if(bright)
     {
-      /* only offer bright light when natural lighting is not bright enough */
       targetBrightness = 2;
     }
   } else {
