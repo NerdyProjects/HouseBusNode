@@ -52,12 +52,11 @@
 
 #define KEY_OCCUPANCY 0
 
-#define MOTION_TRIGGER_ACTIVE_S 45
+#define MOTION_TRIGGER_ACTIVE_S 60
 #define MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S 900
 #define MOTION_TRIGGER_BLOCK_AFTER_DOOR_CLOSE_S 120
 #define MOTION_TRIGGER_AFTER_DOOR_CLOSE_NOT_EMPTY_S 120
 #define PRIVATE_MODE_BUTTON_VALID_FOR_S 30
-#define PRIVATE_MODE_EMPTY_VALID_FOR_S 7
 
 #define LDR_TICK_INTERVAL_S 10
 
@@ -243,7 +242,6 @@ static void occupancyIndicatorTick(BathroomStatus *status)
   uint32_t motionSensorActiveAgo = chVTTimeElapsedSinceX(motion_sensor_last_active);
   uint32_t doorOpenAgo = chVTTimeElapsedSinceX(door_sensor_last_open);
   static uint8_t motion_sensor_active_since_door_closed;
-  static uint8_t door_open_counter; /* for OCCUPANCY_MODE_PRIVATE */
   /* detection of behaviour: Motion sensor should have sensed activity IF there was any */
   uint8_t motion_sensor_should_have_been_active_since_door_closed =
       door_closed && doorOpenAgo > TIME_S2I(MOTION_TRIGGER_AFTER_DOOR_CLOSE_NOT_EMPTY_S);
@@ -288,11 +286,6 @@ static void occupancyIndicatorTick(BathroomStatus *status)
       occupancyPressedAt = 0;
       nextState = OCCUPANCY_MODE_PRIVATE;
     }
-    if(door_closed && !motion_sensor_active_since_door_closed &&
-        motion_sensor_should_have_been_active_since_door_closed) {
-    /* fast exit of this state to empty when door is closed and no person detected */
-      nextState = OCCUPANCY_MODE_EMPTY;
-    }
 
     break;
   case OCCUPANCY_MODE_IN_USE:
@@ -303,21 +296,12 @@ static void occupancyIndicatorTick(BathroomStatus *status)
       if(!door_closed) {
         nextState = OCCUPANCY_MODE_OPEN_IN_USE;
       }
-      if((motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S) && motion_sensor_active_since_door_closed)
-          || (motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_S) && !motion_sensor_active_since_door_closed)) {
+      if(motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_S)) {
         nextState = OCCUPANCY_MODE_EMPTY;
       }
     }
     break;
   case OCCUPANCY_MODE_PRIVATE:
-    if(!door_closed) {
-      /* allow a short time of door open in private mode */
-      if(++door_open_counter >= PRIVATE_MODE_EMPTY_VALID_FOR_S) {
-        nextState = OCCUPANCY_MODE_OPEN_IN_USE;
-      }
-    } else {
-      door_open_counter = 0;
-    }
     if(motionSensorActiveAgo > TIME_S2I(MOTION_TRIGGER_ACTIVE_DOOR_CLOSED_S) ||
        (motion_sensor_should_have_been_active_since_door_closed && !motion_sensor_active_since_door_closed)) {
       nextState = OCCUPANCY_MODE_EMPTY;
